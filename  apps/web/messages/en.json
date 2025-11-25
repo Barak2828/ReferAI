@@ -1,0 +1,26 @@
+{
+    "Index": {
+        "title": "Turn Your Network Into Revenue",
+        "subtitle": "The first AI-powered social referral platform.",
+        "getStarted": "Sign In / Get Started",
+        "features": {
+            "ai": "AI Content",
+            "aiDesc": "Generate high-converting posts and messages.",
+            "track": "Track Referrals",
+            "trackDesc": "Transparent tracking for every click and lead.",
+            "paid": "Get Paid",
+            "paidDesc": "Simple commission management."
+        }
+    },
+    "Auth": {
+        "welcome": "Welcome to ReferAI",
+        "signIn": "Sign In",
+        "email": "Email address",
+        "password": "Password"
+    },
+    "Dashboard": {
+        "provider": "Provider Dashboard",
+        "promoter": "Promoter Dashboard",
+        "logout": "Logout"
+    }
+}
