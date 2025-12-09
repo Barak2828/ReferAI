@@ -1,0 +1,55 @@
+{
+    "Index": {
+        "title": "Turn Your Network Into Revenue",
+        "subtitle": "The first AI-powered social referral platform.",
+        "getStarted": "Sign In / Get Started",
+        "features": {
+            "ai": "AI Content",
+            "aiDesc": "Generate high-converting posts and messages.",
+            "track": "Track Referrals",
+            "trackDesc": "Transparent tracking for every click and lead.",
+            "paid": "Get Paid",
+            "paidDesc": "Simple commission management."
+        }
+    },
+    "Auth": {
+        "welcome": "Welcome to ReferAI",
+        "signIn": "Sign In",
+        "email": "Email address",
+        "password": "Password"
+    },
+    "Dashboard": {
+        "provider": "Provider Dashboard",
+        "promoter": "Promoter Dashboard",
+        "logout": "Logout",
+        "campaignDetailsTitle": "Campaign Details",
+        "commissionRulesTitle": "Commission & Rules",
+        "aiContentGenerationTitle": "AI Content Engine (Text Only)",
+        "campaignNameLabel": "Campaign Name",
+        "campaignNamePlaceholder": "e.g. Summer Sale 2025",
+        "descriptionLabel": "Description",
+        "descriptionPlaceholder": "What are you promoting?",
+        "callToActionLabel": "Call to Action (URL)",
+        "callToActionPlaceholder": "https://yourwebsite.com/offer",
+        "commissionTypeLabel": "Commission Type",
+        "percentageCommission": "Percentage (%)",
+        "fixedAmountCommission": "Fixed Amount (₪)",
+        "commissionValueLabel": "Commission Value",
+        "aiContentEngineTextTitle": "AI Content Engine (Text)",
+        "aiContentEngineTextDescription": "We will generate optimized text captions for your promoters.",
+        "contentLanguageLabel": "Content Language",
+        "hebrewLanguage": "Hebrew (עברית)",
+        "englishLanguage": "English",
+        "whatsappTemplate": "WhatsApp Message Template",
+        "instagramCaption": "Instagram Caption",
+        "linkedinPost": "LinkedIn Text Post",
+        "facebookAd": "Facebook Ad",
+        "twitterPost": "Twitter / X Post",
+        "tiktokScript": "TikTok Script",
+        "emailNewsletter": "Email Newsletter",
+        "previewTextButton": "Preview Generated Text",
+        "backButton": "Back",
+        "nextButton": "Next",
+        "launchCampaignButton": "Launch Campaign"
+    }
+}

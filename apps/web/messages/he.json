@@ -1,0 +1,55 @@
+{
+    "Index": {
+        "title": "הפוך את הרשת שלך להכנסה",
+        "subtitle": "פלטפורמת ההפניות החברתית הראשונה המבוססת על בינה מלאכותית.",
+        "getStarted": "התחבר / התחל",
+        "features": {
+            "ai": "תוכן AI",
+            "aiDesc": "צור פוסטים והודעות ממירים בשניות.",
+            "track": "מעקב הפניות",
+            "trackDesc": "מעקב שקוף אחר כל קליק וליד.",
+            "paid": "קבל תשלום",
+            "paidDesc": "ניהול עמלות פשוט."
+        }
+    },
+    "Auth": {
+        "welcome": "ברוכים הבאים ל-ReferAI",
+        "signIn": "התחבר",
+        "email": "כתובת אימייל",
+        "password": "סיסמה"
+    },
+    "Dashboard": {
+        "provider": "לוח בקרה ספק",
+        "promoter": "לוח בקרה משווק",
+        "logout": "התנתק",
+        "campaignDetailsTitle": "פרטי קמפיין",
+        "commissionRulesTitle": "עמלות וחוקים",
+        "aiContentGenerationTitle": "מנוע תוכן AI (טקסט בלבד)",
+        "campaignNameLabel": "שם הקמפיין",
+        "campaignNamePlaceholder": "לדוגמה: מכירת קיץ 2025",
+        "descriptionLabel": "תיאור",
+        "descriptionPlaceholder": "מה אתה מקדם?",
+        "callToActionLabel": "קריאה לפעולה (URL)",
+        "callToActionPlaceholder": "https://yourwebsite.com/offer",
+        "commissionTypeLabel": "סוג עמלה",
+        "percentageCommission": "אחוזים (%)",
+        "fixedAmountCommission": "סכום קבוע (₪)",
+        "commissionValueLabel": "ערך העמלה",
+        "aiContentEngineTextTitle": "מנוע תוכן AI (טקסט)",
+        "aiContentEngineTextDescription": "אנו ניצור כיתובים מותאמים אישית למשווקים שלך.",
+        "contentLanguageLabel": "שפת התוכן",
+        "hebrewLanguage": "עברית",
+        "englishLanguage": "אנגלית",
+        "whatsappTemplate": "תבנית הודעת וואטסאפ",
+        "instagramCaption": "כיתוב לאינסטגרם",
+        "linkedinPost": "פוסט ללינקדאין",
+        "facebookAd": "מודעה לפייסבוק",
+        "twitterPost": "ציוץ לטוויטר / X",
+        "tiktokScript": "תסריט לטיקטוק",
+        "emailNewsletter": "ניוזלטר (אימייל)",
+        "previewTextButton": "תצוגה מקדימה של טקסט",
+        "backButton": "חזור",
+        "nextButton": "הבא",
+        "launchCampaignButton": "השק קמפיין"
+    }
+}
