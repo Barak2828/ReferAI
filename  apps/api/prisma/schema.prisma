@@ -1,0 +1,117 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  PROVIDER
+  PROMOTER
+  ADMIN
+}
+
+enum LeadStatus {
+  NEW
+  CONTACTED
+  CLOSED
+  LOST
+}
+
+enum ContentType {
+  WHATSAPP_TEXT
+  INSTAGRAM_CAPTION
+  LINKEDIN_POST
+}
+
+model User {
+  id        String   @id @default(uuid())
+  email     String   @unique
+  name      String?
+  role      UserRole @default(PROVIDER)
+  locale    String   @default("he") // 'he' or 'en'
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Provider fields
+  campaigns Campaign[]
+
+  // Promoter fields
+  shareLinks    ShareLink[]
+  leads         Lead[]         @relation("PromoterLeads")
+  payoutLedgers PayoutLedger[]
+}
+
+model Campaign {
+  id              String   @id @default(uuid())
+  azugaCampaignId String?  // Link to Azuga's internal system
+  name            String
+  description     String
+  commission      Float
+  cta             String
+  isActive        Boolean  @default(true)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  providerId String
+  provider   User   @relation(fields: [providerId], references: [id])
+
+  contents   Content[]
+  shareLinks ShareLink[]
+  leads      Lead[]
+}
+
+model Content {
+  id         String      @id @default(uuid())
+  type       ContentType
+  language   String      @default("he") // 'he' or 'en'
+  text       String      // The actual text content
+  createdAt  DateTime    @default(now())
+  
+  campaignId String
+  campaign   Campaign @relation(fields: [campaignId], references: [id])
+}
+
+model ShareLink {
+  id         String   @id @default(uuid())
+  code       String   @unique
+  clicks     Int      @default(0)
+  createdAt  DateTime @default(now())
+
+  promoterId String
+  promoter   User     @relation(fields: [promoterId], references: [id])
+  
+  campaignId String
+  campaign   Campaign @relation(fields: [campaignId], references: [id])
+}
+
+model Lead {
+  id        String     @id @default(uuid())
+  name      String?
+  contact   String?
+  status    LeadStatus @default(NEW)
+  value     Float?
+  commission Float?
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+
+  campaignId String
+  campaign   Campaign @relation(fields: [campaignId], references: [id])
+
+  promoterId String
+  promoter   User   @relation("PromoterLeads", fields: [promoterId], references: [id])
+}
+
+model PayoutLedger {
+  id         String   @id @default(uuid())
+  amount     Float
+  status     String   @default("PENDING") // PENDING, PAID
+  periodStart DateTime
+  periodEnd   DateTime
+  createdAt  DateTime @default(now())
+
+  promoterId String
+  promoter   User   @relation(fields: [promoterId], references: [id])
+}
