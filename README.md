@@ -74,5 +74,16 @@ We have included a `Dockerfile` for containerized hosting.
 4.  Add your Environment Variables in the service settings.
 5.  Deploy.
 
+## ⚠️ Troubleshooting Vercel Deployment
+
+**Error: "No Output Directory named 'public' found"**
+This happens if Vercel tries to build the root folder instead of the web app.
+**Fix:**
+1.  Go to your Vercel Project Settings.
+2.  Go to **General** -> **Root Directory**.
+3.  Click **Edit** and set it to: `apps/web`.
+4.  Click **Save**.
+5.  Go to **Deployments** and **Redeploy**.
+
 ## 📄 License
 Private - Azuga Marketing.
