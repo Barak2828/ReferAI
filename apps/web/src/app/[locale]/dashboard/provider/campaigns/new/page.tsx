@@ -3,19 +3,24 @@
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Textarea } from "@/components/ui/textarea"; // Assuming this component exists or we use standard textarea
 import { useState } from "react";
 import { useTranslations } from 'next-intl';
 import { generateCampaignContent } from "@/app/actions/ai";
 import { createCampaign } from "@/app/actions/campaign";
 import { Loader2, Check, Copy } from "lucide-react";
-import { useRouter } from "next/navigation";
+import { useRouter, usePathname } from "next/navigation";
+import { useToast } from "@/components/ui/toast-provider";
 
 export default function NewCampaignPage() {
     const t = useTranslations('Dashboard');
     const router = useRouter();
+    const pathname = usePathname();
+    const locale = pathname?.split('/')[1] || 'he';
+    const { toast } = useToast();
+
     const [step, setStep] = useState(1);
     const [language, setLanguage] = useState("he");
+    const [formErrors, setFormErrors] = useState<Record<string, string>>({});
 
     // Form State
     const [formData, setFormData] = useState({
@@ -39,24 +44,69 @@ export default function NewCampaignPage() {
     const [isGenerating, setIsGenerating] = useState(false);
     const [isLaunching, setIsLaunching] = useState(false);
     const [generatedContent, setGeneratedContent] = useState<Record<string, string> | null>(null);
+    const [copiedPlatform, setCopiedPlatform] = useState<string | null>(null);
 
     const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        setFormData({ ...formData, [e.target.name]: e.target.value });
+        const { name, value } = e.target;
+        setFormData(prev => ({ ...prev, [name]: value }));
+        // Clear error for this field on change
+        if (formErrors[name]) {
+            setFormErrors(prev => ({ ...prev, [name]: '' }));
+        }
     };
 
     const handlePlatformToggle = (platform: keyof typeof selectedPlatforms) => {
         setSelectedPlatforms(prev => ({ ...prev, [platform]: !prev[platform] }));
     };
 
+    const validateStep1 = (): boolean => {
+        const errors: Record<string, string> = {};
+        if (!formData.name || formData.name.length < 3) {
+            errors.name = 'Campaign name must be at least 3 characters';
+        }
+        if (!formData.description || formData.description.length < 10) {
+            errors.description = 'Description must be at least 10 characters';
+        }
+        if (formData.cta && !/^https?:\/\/.+/.test(formData.cta)) {
+            errors.cta = 'Must be a valid URL (starting with http:// or https://)';
+        }
+        setFormErrors(errors);
+        return Object.keys(errors).length === 0;
+    };
+
+    const validateStep2 = (): boolean => {
+        const errors: Record<string, string> = {};
+        const value = parseFloat(formData.commissionValue);
+        if (!formData.commissionValue || isNaN(value) || value <= 0) {
+            errors.commissionValue = 'Commission must be a positive number';
+        }
+        if (formData.commissionType === 'percentage' && value > 100) {
+            errors.commissionValue = 'Percentage cannot exceed 100%';
+        }
+        setFormErrors(errors);
+        return Object.keys(errors).length === 0;
+    };
+
+    const handleNextStep = () => {
+        if (step === 1 && !validateStep1()) return;
+        if (step === 2 && !validateStep2()) return;
+        setStep(step + 1);
+    };
+
     const handleGenerate = async () => {
         if (!formData.description) return;
 
+        const platforms = Object.entries(selectedPlatforms)
+            .filter(([_, enabled]) => enabled)
+            .map(([key]) => key);
+
+        if (platforms.length === 0) {
+            toast('Please select at least one platform', 'error');
+            return;
+        }
+
         setIsGenerating(true);
         try {
-            const platforms = Object.entries(selectedPlatforms)
-                .filter(([_, enabled]) => enabled)
-                .map(([key]) => key);
-
             const result = await generateCampaignContent({
                 description: formData.description,
                 platforms,
@@ -65,11 +115,26 @@ export default function NewCampaignPage() {
 
             if (result.success && result.content) {
                 setGeneratedContent(result.content);
+                toast('Content generated successfully!', 'success');
+            } else {
+                toast(result.error || 'Failed to generate content', 'error');
             }
         } catch (error) {
             console.error("Failed to generate content", error);
+            toast('Failed to generate content. Please try again.', 'error');
         } finally {
             setIsGenerating(false);
+        }
+    };
+
+    const handleCopyContent = async (platform: string, text: string) => {
+        try {
+            await navigator.clipboard.writeText(text);
+            setCopiedPlatform(platform);
+            toast(`${platform} content copied to clipboard`, 'success');
+            setTimeout(() => setCopiedPlatform(null), 2000);
+        } catch {
+            toast('Failed to copy to clipboard', 'error');
         }
     };
 
@@ -84,13 +149,14 @@ export default function NewCampaignPage() {
             });
 
             if (result.success) {
-                router.push('/dashboard/provider');
+                toast('Campaign launched successfully!', 'success');
+                router.push(`/${locale}/dashboard/provider`);
             } else {
-                alert(`Error: ${result.error}`); // Simple error handling for now
+                toast(result.error || 'Failed to launch campaign', 'error');
             }
         } catch (error) {
             console.error("Failed to launch campaign", error);
-            alert("Unexpected error occurred");
+            toast('An unexpected error occurred. Please try again.', 'error');
         } finally {
             setIsLaunching(false);
         }
@@ -115,31 +181,37 @@ export default function NewCampaignPage() {
                     {step === 1 && (
                         <>
                             <div className="space-y-2">
-                                <label className="text-sm font-medium">{t('campaignNameLabel')}</label>
+                                <label htmlFor="name" className="text-sm font-medium">{t('campaignNameLabel')}</label>
                                 <Input
+                                    id="name"
                                     name="name"
                                     placeholder={t('campaignNamePlaceholder')}
                                     value={formData.name}
                                     onChange={handleInputChange}
                                 />
+                                {formErrors.name && <p className="text-sm text-red-500">{formErrors.name}</p>}
                             </div>
                             <div className="space-y-2">
-                                <label className="text-sm font-medium">{t('descriptionLabel')}</label>
+                                <label htmlFor="description" className="text-sm font-medium">{t('descriptionLabel')}</label>
                                 <Input
+                                    id="description"
                                     name="description"
                                     placeholder={t('descriptionPlaceholder')}
                                     value={formData.description}
                                     onChange={handleInputChange}
                                 />
+                                {formErrors.description && <p className="text-sm text-red-500">{formErrors.description}</p>}
                             </div>
                             <div className="space-y-2">
-                                <label className="text-sm font-medium">{t('callToActionLabel')}</label>
+                                <label htmlFor="cta" className="text-sm font-medium">{t('callToActionLabel')}</label>
                                 <Input
+                                    id="cta"
                                     name="cta"
                                     placeholder={t('callToActionPlaceholder')}
                                     value={formData.cta}
                                     onChange={handleInputChange}
                                 />
+                                {formErrors.cta && <p className="text-sm text-red-500">{formErrors.cta}</p>}
                             </div>
                         </>
                     )}
@@ -166,14 +238,18 @@ export default function NewCampaignPage() {
                                 </div>
                             </div>
                             <div className="space-y-2">
-                                <label className="text-sm font-medium">{t('commissionValueLabel')}</label>
+                                <label htmlFor="commissionValue" className="text-sm font-medium">{t('commissionValueLabel')}</label>
                                 <Input
+                                    id="commissionValue"
                                     name="commissionValue"
                                     type="number"
                                     placeholder="10"
+                                    min="0"
+                                    max={formData.commissionType === 'percentage' ? '100' : undefined}
                                     value={formData.commissionValue}
                                     onChange={handleInputChange}
                                 />
+                                {formErrors.commissionValue && <p className="text-sm text-red-500">{formErrors.commissionValue}</p>}
                             </div>
                         </>
                     )}
@@ -211,71 +287,24 @@ export default function NewCampaignPage() {
                                 </div>
 
                                 <div>
-                                    <label className="text-sm font-medium block mb-3 text-slate-700">Target Platforms</label>
+                                    <label className="text-sm font-medium block mb-3 text-slate-700">{t('aiContentGenerationTitle')}</label>
                                     <div className="grid sm:grid-cols-3 gap-3">
-                                        <label className={`flex items-center gap-3 p-3 rounded-lg border cursor-pointer transition-all ${selectedPlatforms.whatsapp ? 'bg-white border-blue-500 shadow-sm' : 'bg-slate-50 border-slate-200'}`}>
-                                            <input
-                                                type="checkbox"
-                                                checked={selectedPlatforms.whatsapp}
-                                                onChange={() => handlePlatformToggle('whatsapp')}
-                                                className="accent-blue-600 h-4 w-4"
-                                            />
-                                            <span className="text-sm font-medium">{t('whatsappTemplate')}</span>
-                                        </label>
-                                        <label className={`flex items-center gap-3 p-3 rounded-lg border cursor-pointer transition-all ${selectedPlatforms.instagram ? 'bg-white border-pink-500 shadow-sm' : 'bg-slate-50 border-slate-200'}`}>
-                                            <input
-                                                type="checkbox"
-                                                checked={selectedPlatforms.instagram}
-                                                onChange={() => handlePlatformToggle('instagram')}
-                                                className="accent-pink-600 h-4 w-4"
-                                            />
-                                            <span className="text-sm font-medium">{t('instagramCaption')}</span>
-                                        </label>
-                                        <label className={`flex items-center gap-3 p-3 rounded-lg border cursor-pointer transition-all ${selectedPlatforms.linkedin ? 'bg-white border-blue-700 shadow-sm' : 'bg-slate-50 border-slate-200'}`}>
-                                            <input
-                                                type="checkbox"
-                                                checked={selectedPlatforms.linkedin}
-                                                onChange={() => handlePlatformToggle('linkedin')}
-                                                className="accent-blue-700 h-4 w-4"
-                                            />
-                                            <span className="text-sm font-medium">{t('linkedinPost')}</span>
-                                        </label>
-                                        <label className={`flex items-center gap-3 p-3 rounded-lg border cursor-pointer transition-all ${selectedPlatforms.facebook ? 'bg-white border-blue-600 shadow-sm' : 'bg-slate-50 border-slate-200'}`}>
-                                            <input
-                                                type="checkbox"
-                                                checked={selectedPlatforms.facebook}
-                                                onChange={() => handlePlatformToggle('facebook')}
-                                                className="accent-blue-600 h-4 w-4"
-                                            />
-                                            <span className="text-sm font-medium">{t('facebookAd')}</span>
-                                        </label>
-                                        <label className={`flex items-center gap-3 p-3 rounded-lg border cursor-pointer transition-all ${selectedPlatforms.twitter ? 'bg-white border-sky-500 shadow-sm' : 'bg-slate-50 border-slate-200'}`}>
-                                            <input
-                                                type="checkbox"
-                                                checked={selectedPlatforms.twitter}
-                                                onChange={() => handlePlatformToggle('twitter')}
-                                                className="accent-sky-500 h-4 w-4"
-                                            />
-                                            <span className="text-sm font-medium">{t('twitterPost')}</span>
-                                        </label>
-                                        <label className={`flex items-center gap-3 p-3 rounded-lg border cursor-pointer transition-all ${selectedPlatforms.tiktok ? 'bg-white border-black shadow-sm' : 'bg-slate-50 border-slate-200'}`}>
-                                            <input
-                                                type="checkbox"
-                                                checked={selectedPlatforms.tiktok}
-                                                onChange={() => handlePlatformToggle('tiktok')}
-                                                className="accent-black h-4 w-4"
-                                            />
-                                            <span className="text-sm font-medium">{t('tiktokScript')}</span>
-                                        </label>
-                                        <label className={`flex items-center gap-3 p-3 rounded-lg border cursor-pointer transition-all ${selectedPlatforms.email ? 'bg-white border-indigo-500 shadow-sm' : 'bg-slate-50 border-slate-200'}`}>
-                                            <input
-                                                type="checkbox"
-                                                checked={selectedPlatforms.email}
-                                                onChange={() => handlePlatformToggle('email')}
-                                                className="accent-indigo-500 h-4 w-4"
-                                            />
-                                            <span className="text-sm font-medium">{t('emailNewsletter')}</span>
-                                        </label>
+                                        {Object.entries(selectedPlatforms).map(([platform, checked]) => (
+                                            <label
+                                                key={platform}
+                                                htmlFor={`platform-${platform}`}
+                                                className={`flex items-center gap-3 p-3 rounded-lg border cursor-pointer transition-all ${checked ? 'bg-white border-blue-500 shadow-sm' : 'bg-slate-50 border-slate-200'}`}
+                                            >
+                                                <input
+                                                    id={`platform-${platform}`}
+                                                    type="checkbox"
+                                                    checked={checked}
+                                                    onChange={() => handlePlatformToggle(platform as keyof typeof selectedPlatforms)}
+                                                    className="accent-blue-600 h-4 w-4"
+                                                />
+                                                <span className="text-sm font-medium capitalize">{platform}</span>
+                                            </label>
+                                        ))}
                                     </div>
                                 </div>
 
@@ -287,7 +316,7 @@ export default function NewCampaignPage() {
                                     {isGenerating ? (
                                         <>
                                             <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                                            Generatng Content...
+                                            Generating Content...
                                         </>
                                     ) : (
                                         t('previewTextButton')
@@ -306,8 +335,17 @@ export default function NewCampaignPage() {
                                             <div key={platform} className="bg-white p-4 rounded-lg border shadow-sm relative group">
                                                 <div className="flex justify-between items-center mb-2">
                                                     <span className="text-sm font-bold uppercase text-muted-foreground">{platform}</span>
-                                                    <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-blue-600">
-                                                        <Copy className="h-4 w-4" />
+                                                    <Button
+                                                        variant="ghost"
+                                                        size="icon"
+                                                        className="h-8 w-8 text-muted-foreground hover:text-blue-600"
+                                                        onClick={() => handleCopyContent(platform, text)}
+                                                    >
+                                                        {copiedPlatform === platform ? (
+                                                            <Check className="h-4 w-4 text-green-500" />
+                                                        ) : (
+                                                            <Copy className="h-4 w-4" />
+                                                        )}
                                                     </Button>
                                                 </div>
                                                 <p className="text-sm whitespace-pre-wrap leading-relaxed text-slate-700">{text}</p>
@@ -328,7 +366,7 @@ export default function NewCampaignPage() {
                             {t('backButton')}
                         </Button>
                         {step < 3 ? (
-                            <Button onClick={() => setStep(step + 1)}>{t('nextButton')}</Button>
+                            <Button onClick={handleNextStep}>{t('nextButton')}</Button>
                         ) : (
                             <Button
                                 className="bg-green-600 hover:bg-green-700"
@@ -345,4 +383,3 @@ export default function NewCampaignPage() {
         </div>
     );
 }
-

@@ -3,45 +3,54 @@
 import { createClient } from '@/lib/supabase/server'
 import { fetchMockAzugaCampaigns } from '@/lib/azuga-mock'
 import { revalidatePath } from 'next/cache'
+import { requireRole } from '@/lib/auth-guard'
 
 export async function syncAzugaCampaigns() {
+    // Only providers and admins can sync from CRM
+    const auth = await requireRole(['PROVIDER', 'ADMIN'])
+    if (auth.error) {
+        return { success: false, error: auth.error, count: 0 }
+    }
+
     const supabase = createClient()
 
-    // 1. Get current user (Provider)
-    const { data: { user } } = await supabase.auth.getUser()
-    if (!user) {
-        return { error: 'Not authenticated' }
-    }
+    try {
+        // Fetch from "Azuga API" (mock for pilot)
+        const azugaCampaigns = await fetchMockAzugaCampaigns();
 
-    // 2. Fetch from "Azuga API"
-    const azugaCampaigns = await fetchMockAzugaCampaigns();
+        // Upsert into Supabase
+        let count = 0;
+        for (const campaign of azugaCampaigns) {
+            // Check if already synced
+            const { data: existing } = await supabase
+                .from('Campaign')
+                .select('id')
+                .eq('azugaCampaignId', campaign.id)
+                .single()
 
-    // 3. Upsert into Supabase
-    let count = 0;
-    for (const campaign of azugaCampaigns) {
-        // Check if exists
-        const { data: existing } = await supabase
-            .from('Campaign')
-            .select('id')
-            .eq('azugaCampaignId', campaign.id)
-            .single()
+            if (!existing) {
+                const { error } = await supabase.from('Campaign').insert({
+                    name: `[Azuga] ${campaign.name}`,
+                    description: campaign.description,
+                    commission: campaign.payout_amount,
+                    cta: campaign.landing_url,
+                    azugaCampaignId: campaign.id,
+                    providerId: auth.user.id,
+                    isActive: true
+                })
 
-        if (!existing) {
-            // Create new
-            await supabase.from('Campaign').insert({
-                name: `[Azuga] ${campaign.name}`,
-                description: campaign.description,
-                commission: campaign.payout_amount,
-                // Note: we might want to store 'type' somewhere, but schema currently only has float commission
-                cta: campaign.landing_url,
-                azugaCampaignId: campaign.id,
-                providerId: user.id,
-                isActive: true
-            })
-            count++;
+                if (error) {
+                    console.error('Azuga campaign insert error:', error)
+                    continue
+                }
+                count++;
+            }
         }
-    }
 
-    revalidatePath('/dashboard/provider')
-    return { success: true, count }
+        revalidatePath('/dashboard/provider')
+        return { success: true, count }
+    } catch (err) {
+        console.error('Azuga sync exception:', err)
+        return { success: false, error: 'Failed to sync from Azuga CRM. Please try again.', count: 0 }
+    }
 }

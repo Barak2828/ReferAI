@@ -48,14 +48,8 @@ export default function LoginPage() {
                         <Button variant="outline" onClick={() => signInWithOAuth('facebook')}>Meta</Button>
                     </div>
 
-                    <div className="text-center text-sm">
-                        <Link href="/dashboard/provider" className="text-blue-600 hover:underline">
-                            [Demo] Go to Provider Dashboard
-                        </Link>
-                        <br />
-                        <Link href="/dashboard/promoter" className="text-blue-600 hover:underline">
-                            [Demo] Go to Promoter Dashboard
-                        </Link>
+                    <div className="text-center text-sm text-muted-foreground">
+                        <p>Don&apos;t have an account? Contact us to get started.</p>
                     </div>
                 </CardContent>
             </Card>

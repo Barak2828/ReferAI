@@ -6,35 +6,44 @@ import Link from "next/link";
 import { motion } from "framer-motion";
 import { Plus, TrendingUp, Users, Wallet, ArrowUpRight, ArrowRight, RefreshCw, Loader2 } from "lucide-react";
 import { useState } from "react";
+import { usePathname } from "next/navigation";
 import { syncAzugaCampaigns } from "@/app/actions/azuga";
+import { useToast } from "@/components/ui/toast-provider";
+
+const container = {
+    hidden: { opacity: 0 },
+    show: {
+        opacity: 1,
+        transition: { staggerChildren: 0.1 }
+    }
+};
+
+const item = {
+    hidden: { opacity: 0, y: 20 },
+    show: { opacity: 1, y: 0 }
+};
 
 export default function ProviderDashboard() {
     const [isSyncing, setIsSyncing] = useState(false);
+    const { toast } = useToast();
+    const pathname = usePathname();
+    const locale = pathname?.split('/')[1] || 'he';
 
     const handleSync = async () => {
         setIsSyncing(true);
         try {
-            await syncAzugaCampaigns();
+            const result = await syncAzugaCampaigns();
+            if (result.success) {
+                toast(`Successfully synced ${result.count} campaigns from Azuga CRM`, 'success');
+            } else {
+                toast(result.error || 'Failed to sync from Azuga CRM', 'error');
+            }
         } catch (error) {
             console.error("Sync failed", error);
+            toast('Failed to sync from Azuga CRM. Please try again.', 'error');
         } finally {
             setIsSyncing(false);
         }
-    };
-
-    const container = {
-        hidden: { opacity: 0 },
-        show: {
-            opacity: 1,
-            transition: {
-                staggerChildren: 0.1
-            }
-        }
-    };
-
-    const item = {
-        hidden: { opacity: 0, y: 20 },
-        show: { opacity: 1, y: 0 }
     };
 
     return (
@@ -59,7 +68,7 @@ export default function ProviderDashboard() {
                         {isSyncing ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <RefreshCw className="mr-2 h-4 w-4" />}
                         Sync from Azuga CRM
                     </Button>
-                    <Link href="/dashboard/provider/campaigns/new">
+                    <Link href={`/${locale}/dashboard/provider/campaigns/new`}>
                         <Button className="bg-blue-600 hover:bg-blue-700 shadow-lg shadow-blue-600/20 rounded-full px-6">
                             <Plus className="mr-2 h-4 w-4" /> Create Campaign
                         </Button>
@@ -104,7 +113,7 @@ export default function ProviderDashboard() {
                             <Wallet className="h-4 w-4 text-indigo-600" />
                         </CardHeader>
                         <CardContent>
-                            <div className="text-3xl font-bold text-slate-900">₪ 450</div>
+                            <div className="text-3xl font-bold text-slate-900">{'\u20AA'} 450</div>
                             <p className="text-xs text-slate-500 mt-1">Next payout: Dec 1st</p>
                         </CardContent>
                     </Card>
