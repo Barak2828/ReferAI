@@ -6,12 +6,20 @@ services:
     container_name: referai_postgres
     ports:
       - "5432:5432"
+    env_file:
+      - .env
     environment:
-      POSTGRES_USER: referai
-      POSTGRES_PASSWORD: password
-      POSTGRES_DB: referai_db
+      POSTGRES_USER: ${POSTGRES_USER:-referai}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}
+      POSTGRES_DB: ${POSTGRES_DB:-referai_db}
     volumes:
       - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-referai}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
 
 volumes:
   postgres_data:

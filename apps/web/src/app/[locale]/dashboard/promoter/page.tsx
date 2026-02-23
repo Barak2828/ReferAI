@@ -4,43 +4,86 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useTranslations } from 'next-intl';
 import { motion } from "framer-motion";
-import { Wallet, MousePointerClick, TrendingUp, Sparkles, Link as LinkIcon, ArrowRight, Loader2 } from "lucide-react";
-import { useEffect, useState } from "react";
+import { Wallet, MousePointerClick, TrendingUp, Sparkles, Link as LinkIcon, Loader2, AlertCircle, RefreshCw } from "lucide-react";
+import { useEffect, useState, useCallback } from "react";
 import { getAvailableCampaigns } from "@/app/actions/campaign";
+import { generateCampaignContent } from "@/app/actions/ai";
+import { useToast } from "@/components/ui/toast-provider";
+import type { Campaign } from "@/lib/types";
+
+const container = {
+    hidden: { opacity: 0 },
+    show: {
+        opacity: 1,
+        transition: { staggerChildren: 0.1 }
+    }
+};
+
+const item = {
+    hidden: { opacity: 0, y: 20 },
+    show: { opacity: 1, y: 0 }
+};
 
 export default function PromoterDashboard() {
     const t = useTranslations('Dashboard');
-    const [campaigns, setCampaigns] = useState<any[]>([]);
+    const { toast } = useToast();
+    const [campaigns, setCampaigns] = useState<Campaign[]>([]);
     const [loading, setLoading] = useState(true);
+    const [error, setError] = useState<string | null>(null);
+    const [generatingForId, setGeneratingForId] = useState<string | null>(null);
 
-    useEffect(() => {
-        async function fetchCampaigns() {
-            setLoading(true);
-            try {
-                const data = await getAvailableCampaigns();
-                setCampaigns(data || []);
-            } catch (err) {
-                console.error("Failed to load campaigns", err);
-            } finally {
-                setLoading(false);
+    const fetchCampaigns = useCallback(async () => {
+        setLoading(true);
+        setError(null);
+        try {
+            const result = await getAvailableCampaigns();
+            if (result.success) {
+                setCampaigns(result.campaigns || []);
+            } else {
+                setError(result.error || 'Failed to load campaigns');
             }
+        } catch (err) {
+            console.error("Failed to load campaigns", err);
+            setError('Failed to load campaigns. Please try again.');
+        } finally {
+            setLoading(false);
         }
-        fetchCampaigns();
     }, []);
 
-    const container = {
-        hidden: { opacity: 0 },
-        show: {
-            opacity: 1,
-            transition: {
-                staggerChildren: 0.1
-            }
+    useEffect(() => {
+        fetchCampaigns();
+    }, [fetchCampaigns]);
+
+    const handleCopyLink = async (campaignId: string, campaignName: string) => {
+        // Generate a share link (for pilot, use a placeholder URL)
+        const shareUrl = `${window.location.origin}/ref/${campaignId}`;
+        try {
+            await navigator.clipboard.writeText(shareUrl);
+            toast(`Share link for "${campaignName}" copied to clipboard!`, 'success');
+        } catch {
+            toast('Failed to copy link. Please try again.', 'error');
         }
     };
 
-    const item = {
-        hidden: { opacity: 0, y: 20 },
-        show: { opacity: 1, y: 0 }
+    const handleGenerateAIText = async (campaign: Campaign) => {
+        setGeneratingForId(campaign.id);
+        try {
+            const result = await generateCampaignContent({
+                description: campaign.description,
+                platforms: ['whatsapp'],
+                language: 'he',
+            });
+            if (result.success && result.content?.whatsapp) {
+                await navigator.clipboard.writeText(result.content.whatsapp);
+                toast('AI text generated and copied to clipboard!', 'success');
+            } else {
+                toast(result.error || 'Failed to generate AI text', 'error');
+            }
+        } catch {
+            toast('Failed to generate AI text. Please try again.', 'error');
+        } finally {
+            setGeneratingForId(null);
+        }
     };
 
     return (
@@ -63,7 +106,7 @@ export default function PromoterDashboard() {
                             <Wallet className="h-4 w-4 text-green-600" />
                         </CardHeader>
                         <CardContent>
-                            <div className="text-3xl font-bold text-slate-900">₪ 0</div>
+                            <div className="text-3xl font-bold text-slate-900">{'\u20AA'} 0</div>
                             <p className="text-xs text-slate-500 mt-1">Pending payout (Manual)</p>
                         </CardContent>
                     </Card>
@@ -101,15 +144,39 @@ export default function PromoterDashboard() {
 
             <motion.div variants={item}>
                 <h2 className="text-xl font-semibold mb-4 text-slate-900">Available Campaigns</h2>
-                {loading ? (
+
+                {/* Error State */}
+                {error && (
+                    <div className="flex flex-col items-center justify-center py-12 bg-red-50/50 rounded-lg border border-red-200">
+                        <AlertCircle className="h-8 w-8 text-red-500 mb-3" />
+                        <p className="text-red-700 font-medium mb-3">{error}</p>
+                        <Button
+                            variant="outline"
+                            onClick={fetchCampaigns}
+                            className="border-red-200 text-red-700 hover:bg-red-50"
+                        >
+                            <RefreshCw className="mr-2 h-4 w-4" />
+                            Try Again
+                        </Button>
+                    </div>
+                )}
+
+                {/* Loading State */}
+                {loading && !error && (
                     <div className="flex justify-center py-12">
                         <Loader2 className="h-8 w-8 animate-spin text-blue-600" />
                     </div>
-                ) : campaigns.length === 0 ? (
+                )}
+
+                {/* Empty State */}
+                {!loading && !error && campaigns.length === 0 && (
                     <div className="text-center py-12 bg-white/50 rounded-lg border border-dashed">
                         <p className="text-muted-foreground">No active campaigns found at the moment.</p>
                     </div>
-                ) : (
+                )}
+
+                {/* Campaign Cards */}
+                {!loading && !error && campaigns.length > 0 && (
                     <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
                         {campaigns.map((campaign) => (
                             <Card key={campaign.id} className="border-0 shadow-xl shadow-slate-200/50 bg-white/80 backdrop-blur-xl hover:translate-y-[-4px] transition-all duration-300">
@@ -131,11 +198,26 @@ export default function PromoterDashboard() {
                                         {campaign.description}
                                     </p>
                                     <div className="grid grid-cols-2 gap-3">
-                                        <Button className="w-full bg-blue-600 hover:bg-blue-700 shadow-md shadow-blue-600/10" size="sm">
+                                        <Button
+                                            className="w-full bg-blue-600 hover:bg-blue-700 shadow-md shadow-blue-600/10"
+                                            size="sm"
+                                            onClick={() => handleCopyLink(campaign.id, campaign.name)}
+                                        >
                                             <LinkIcon className="mr-2 h-3 w-3" /> Link
                                         </Button>
-                                        <Button variant="outline" className="w-full border-slate-200 hover:bg-slate-50" size="sm">
-                                            <Sparkles className="mr-2 h-3 w-3 text-purple-600" /> AI Text
+                                        <Button
+                                            variant="outline"
+                                            className="w-full border-slate-200 hover:bg-slate-50"
+                                            size="sm"
+                                            onClick={() => handleGenerateAIText(campaign)}
+                                            disabled={generatingForId === campaign.id}
+                                        >
+                                            {generatingForId === campaign.id ? (
+                                                <Loader2 className="mr-2 h-3 w-3 animate-spin" />
+                                            ) : (
+                                                <Sparkles className="mr-2 h-3 w-3 text-purple-600" />
+                                            )}
+                                            AI Text
                                         </Button>
                                     </div>
                                 </CardContent>

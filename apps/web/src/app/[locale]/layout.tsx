@@ -3,6 +3,7 @@ import { Inter } from "next/font/google";
 import "../globals.css";
 import { NextIntlClientProvider } from 'next-intl';
 import { getLocale, getMessages } from 'next-intl/server';
+import { ToastProvider } from '@/components/ui/toast-provider';
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -24,7 +25,9 @@ export default async function RootLayout({
         <html lang={locale} dir={direction}>
             <body className={`${inter.className} notranslate`}>
                 <NextIntlClientProvider messages={messages}>
-                    {children}
+                    <ToastProvider>
+                        {children}
+                    </ToastProvider>
                 </NextIntlClientProvider>
             </body>
         </html>
