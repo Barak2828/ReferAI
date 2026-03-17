@@ -1,20 +1,19 @@
 "use client";
 
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import Link from "next/link";
+import { useTranslations } from 'next-intl';
+import { useLocale } from 'next-intl';
 import { motion } from "framer-motion";
-import { ArrowRight, Zap, BarChart3, Globe2 } from "lucide-react";
+import { ArrowRight, Zap, BarChart3, Globe2, Sparkles } from "lucide-react";
 
 export default function Home() {
+    const t = useTranslations('Index');
+    const locale = useLocale();
+
     const container = {
         hidden: { opacity: 0 },
-        show: {
-            opacity: 1,
-            transition: {
-                staggerChildren: 0.1
-            }
-        }
+        show: { opacity: 1, transition: { staggerChildren: 0.1 } }
     };
 
     const item = {
@@ -22,15 +21,40 @@ export default function Home() {
         show: { opacity: 1, y: 0 }
     };
 
+    const features = [
+        {
+            icon: Zap,
+            title: t('features.ai'),
+            description: t('features.aiDesc'),
+            color: "from-blue-500 to-blue-600",
+            glow: "glow-blue",
+        },
+        {
+            icon: BarChart3,
+            title: t('features.track'),
+            description: t('features.trackDesc'),
+            color: "from-purple-500 to-purple-600",
+            glow: "glow-indigo",
+        },
+        {
+            icon: Globe2,
+            title: t('features.paid'),
+            description: t('features.paidDesc'),
+            color: "from-indigo-500 to-indigo-600",
+            glow: "glow-indigo",
+        },
+    ];
+
     return (
-        <main className="min-h-screen bg-slate-50 overflow-hidden">
+        <main className="min-h-screen bg-background overflow-hidden">
             {/* Hero Section */}
             <div className="relative pt-20 pb-32 lg:pt-32 overflow-hidden">
-                {/* Background Gradients */}
+                {/* Background effects */}
+                <div className="absolute inset-0 dot-pattern opacity-40" />
                 <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full h-full z-0 pointer-events-none">
-                    <div className="absolute top-0 left-1/4 w-[500px] h-[500px] bg-blue-400/20 rounded-full blur-[100px] mix-blend-multiply animate-blob" />
-                    <div className="absolute top-0 right-1/4 w-[500px] h-[500px] bg-purple-400/20 rounded-full blur-[100px] mix-blend-multiply animate-blob animation-delay-2000" />
-                    <div className="absolute -bottom-32 left-1/3 w-[500px] h-[500px] bg-pink-400/20 rounded-full blur-[100px] mix-blend-multiply animate-blob animation-delay-4000" />
+                    <div className="absolute top-0 left-1/4 w-[500px] h-[500px] bg-blue-600/10 rounded-full blur-[120px] animate-blob" />
+                    <div className="absolute top-0 right-1/4 w-[500px] h-[500px] bg-indigo-600/10 rounded-full blur-[120px] animate-blob animation-delay-2000" />
+                    <div className="absolute -bottom-32 left-1/3 w-[500px] h-[500px] bg-purple-600/8 rounded-full blur-[120px] animate-blob animation-delay-4000" />
                 </div>
 
                 <div className="container relative z-10 mx-auto px-4 text-center">
@@ -38,32 +62,29 @@ export default function Home() {
                         initial={{ opacity: 0, y: 20 }}
                         animate={{ opacity: 1, y: 0 }}
                         transition={{ duration: 0.5 }}
-                        className="inline-flex items-center rounded-full border border-blue-200 bg-blue-50 px-3 py-1 text-sm text-blue-800 mb-8 backdrop-blur-sm"
+                        className="inline-flex items-center rounded-full glass px-4 py-1.5 text-sm text-blue-300 mb-8"
                     >
-                        <span className="flex h-2 w-2 rounded-full bg-blue-600 mr-2 animate-pulse"></span>
-                        Azuga-Powered Israel Pilot 🇮🇱
+                        <span className="flex h-2 w-2 rounded-full bg-blue-400 mr-2 animate-pulse" />
+                        <Sparkles className="h-3.5 w-3.5 mr-1.5" />
+                        {t('poweredBy')}
                     </motion.div>
 
                     <motion.h1
                         initial={{ opacity: 0, y: 20 }}
                         animate={{ opacity: 1, y: 0 }}
                         transition={{ duration: 0.5, delay: 0.1 }}
-                        className="text-5xl md:text-7xl font-bold tracking-tight text-slate-900 mb-6"
+                        className="text-5xl md:text-7xl font-bold tracking-tight text-foreground mb-6"
                     >
-                        Turn Your Network <br />
-                        <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-purple-600">
-                            Into Revenue
-                        </span>
+                        {t('title')}
                     </motion.h1>
 
                     <motion.p
                         initial={{ opacity: 0, y: 20 }}
                         animate={{ opacity: 1, y: 0 }}
                         transition={{ duration: 0.5, delay: 0.2 }}
-                        className="mt-6 text-lg leading-8 text-slate-600 max-w-2xl mx-auto mb-10"
+                        className="mt-6 text-lg leading-8 text-muted-foreground max-w-2xl mx-auto mb-10"
                     >
-                        The first AI-powered social referral platform designed for the Israeli market.
-                        Automate your content, track every lead, and get paid instantly.
+                        {t('subtitle')} {t('subtitleExtended')}
                     </motion.p>
 
                     <motion.div
@@ -72,14 +93,19 @@ export default function Home() {
                         transition={{ duration: 0.5, delay: 0.3 }}
                         className="flex items-center justify-center gap-x-6"
                     >
-                        <Link href="/login">
-                            <Button size="lg" className="rounded-full px-8 py-6 text-lg bg-blue-600 hover:bg-blue-700 shadow-lg shadow-blue-600/20 transition-all hover:scale-105">
-                                Get Started <ArrowRight className="ml-2 h-5 w-5" />
+                        <Link href={`/${locale}/signup`}>
+                            <Button size="lg" className="rounded-full px-8 py-6 text-lg bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white shadow-lg shadow-blue-600/20 transition-all hover:scale-105 hover:shadow-blue-600/30">
+                                {t('getStarted')} <ArrowRight className="ml-2 h-5 w-5" />
+                            </Button>
+                        </Link>
+                        <Link href={`/${locale}/login`}>
+                            <Button variant="ghost" size="lg" className="rounded-full px-8 py-6 text-lg text-muted-foreground hover:text-foreground">
+                                {t('signIn')} <span aria-hidden="true" className="ml-1">&#8594;</span>
                             </Button>
                         </Link>
                         <Link href="#features">
-                            <Button variant="ghost" size="lg" className="rounded-full px-8 py-6 text-lg text-slate-600 hover:text-slate-900">
-                                Learn more <span aria-hidden="true">→</span>
+                            <Button variant="ghost" size="lg" className="rounded-full px-8 py-6 text-lg text-muted-foreground hover:text-foreground">
+                                {t('learnMore')} <span aria-hidden="true" className="ml-1">&#8594;</span>
                             </Button>
                         </Link>
                     </motion.div>
@@ -87,12 +113,12 @@ export default function Home() {
             </div>
 
             {/* Features Section */}
-            <div id="features" className="py-24 sm:py-32 bg-white/50 backdrop-blur-3xl relative">
+            <div id="features" className="py-24 sm:py-32 relative">
                 <div className="mx-auto max-w-7xl px-6 lg:px-8">
                     <div className="mx-auto max-w-2xl lg:text-center mb-16">
-                        <h2 className="text-base font-semibold leading-7 text-blue-600">Deploy Faster</h2>
-                        <p className="mt-2 text-3xl font-bold tracking-tight text-slate-900 sm:text-4xl">
-                            Everything you need to scale your referrals
+                        <h2 className="text-base font-semibold leading-7 text-primary">{t('deployFaster')}</h2>
+                        <p className="mt-2 text-3xl font-bold tracking-tight text-foreground sm:text-4xl">
+                            {t('everythingYouNeed')}
                         </p>
                     </div>
 
@@ -104,47 +130,17 @@ export default function Home() {
                         className="mx-auto mt-16 max-w-2xl sm:mt-20 lg:mt-24 lg:max-w-none"
                     >
                         <div className="grid max-w-xl grid-cols-1 gap-x-8 gap-y-10 lg:max-w-none lg:grid-cols-3">
-                            <motion.div variants={item}>
-                                <Card className="border-0 shadow-xl shadow-blue-900/5 bg-white/80 backdrop-blur-sm hover:translate-y-[-5px] transition-all duration-300">
-                                    <CardHeader>
-                                        <div className="mb-4 inline-flex h-12 w-12 items-center justify-center rounded-xl bg-blue-600 text-white shadow-lg shadow-blue-600/20">
-                                            <Zap className="h-6 w-6" />
+                            {features.map((feature) => (
+                                <motion.div key={feature.title} variants={item}>
+                                    <div className={`glass rounded-xl p-6 hover:translate-y-[-5px] transition-all duration-300 gradient-border hover:${feature.glow}`}>
+                                        <div className={`mb-4 inline-flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-br ${feature.color} text-white shadow-lg`}>
+                                            <feature.icon className="h-6 w-6" />
                                         </div>
-                                        <CardTitle className="text-xl">AI Content Engine</CardTitle>
-                                    </CardHeader>
-                                    <CardContent className="text-slate-600">
-                                        Generate high-converting Hebrew/English posts for WhatsApp, Instagram, and LinkedIn in seconds.
-                                    </CardContent>
-                                </Card>
-                            </motion.div>
-
-                            <motion.div variants={item}>
-                                <Card className="border-0 shadow-xl shadow-purple-900/5 bg-white/80 backdrop-blur-sm hover:translate-y-[-5px] transition-all duration-300">
-                                    <CardHeader>
-                                        <div className="mb-4 inline-flex h-12 w-12 items-center justify-center rounded-xl bg-purple-600 text-white shadow-lg shadow-purple-600/20">
-                                            <BarChart3 className="h-6 w-6" />
-                                        </div>
-                                        <CardTitle className="text-xl">Smart Tracking</CardTitle>
-                                    </CardHeader>
-                                    <CardContent className="text-slate-600">
-                                        Real-time analytics for every click, lead, and closed deal. Know exactly what your network is worth.
-                                    </CardContent>
-                                </Card>
-                            </motion.div>
-
-                            <motion.div variants={item}>
-                                <Card className="border-0 shadow-xl shadow-indigo-900/5 bg-white/80 backdrop-blur-sm hover:translate-y-[-5px] transition-all duration-300">
-                                    <CardHeader>
-                                        <div className="mb-4 inline-flex h-12 w-12 items-center justify-center rounded-xl bg-indigo-600 text-white shadow-lg shadow-indigo-600/20">
-                                            <Globe2 className="h-6 w-6" />
-                                        </div>
-                                        <CardTitle className="text-xl">Global & Local</CardTitle>
-                                    </CardHeader>
-                                    <CardContent className="text-slate-600">
-                                        Built for the Israeli market with full RTL support, multi-currency, and local payment integrations.
-                                    </CardContent>
-                                </Card>
-                            </motion.div>
+                                        <h3 className="text-xl font-semibold text-foreground mb-2">{feature.title}</h3>
+                                        <p className="text-muted-foreground">{feature.description}</p>
+                                    </div>
+                                </motion.div>
+                            ))}
                         </div>
                     </motion.div>
                 </div>

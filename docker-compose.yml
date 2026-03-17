@@ -13,5 +13,32 @@ services:
     volumes:
       - postgres_data:/var/lib/postgresql/data
 
+  mongodb:
+    image: mongo:7
+    container_name: referai_mongodb
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongodb_data:/data/db
+    restart: always
+
+  riona:
+    build:
+      context: ./services/riona-ai-agent
+      dockerfile: Dockerfile
+    container_name: referai_riona
+    ports:
+      - "3002:3002"
+    environment:
+      PORT: "3002"
+      MONGODB_URI: mongodb://mongodb:27017/riona-agent
+      IGusername: ${RIONA_IG_USERNAME:-}
+      IGpassword: ${RIONA_IG_PASSWORD:-}
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+    depends_on:
+      - mongodb
+    restart: unless-stopped
+
 volumes:
   postgres_data:
+  mongodb_data:

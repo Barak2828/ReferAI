@@ -1,22 +1,79 @@
 "use client";
 
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { StatsCard } from "@/components/ui/stats-card";
+import { Badge } from "@/components/ui/badge";
 import Link from "next/link";
+import { useLocale, useTranslations } from "next-intl";
 import { motion } from "framer-motion";
-import { Plus, TrendingUp, Users, Wallet, ArrowUpRight, ArrowRight, RefreshCw, Loader2 } from "lucide-react";
-import { useState } from "react";
+import { Plus, TrendingUp, Users, Wallet, ArrowRight, RefreshCw, Loader2, Sparkles, BarChart3, MousePointerClick, FileText } from "lucide-react";
+import { useState, useEffect } from "react";
 import { syncAzugaCampaigns } from "@/app/actions/azuga";
+import { getProviderCampaigns, getProviderStats } from "@/app/actions/campaign";
+import { useToast } from "@/components/ui/toast";
+
+interface ProviderCampaign {
+    id: string;
+    name: string;
+    description: string;
+    commission: number;
+    isActive: boolean;
+    createdAt: string;
+    leadCount: number;
+}
+
+interface ProviderStats {
+    totalLeads: number;
+    activePromoters: number;
+    pendingCommissions: number;
+}
 
 export default function ProviderDashboard() {
     const [isSyncing, setIsSyncing] = useState(false);
+    const [loading, setLoading] = useState(true);
+    const [campaigns, setCampaigns] = useState<ProviderCampaign[]>([]);
+    const [stats, setStats] = useState<ProviderStats>({ totalLeads: 0, activePromoters: 0, pendingCommissions: 0 });
+    const locale = useLocale();
+    const t = useTranslations('Dashboard');
+    const { toast } = useToast();
+
+    useEffect(() => {
+        async function loadData() {
+            setLoading(true);
+            try {
+                const [campaignData, statsData] = await Promise.all([
+                    getProviderCampaigns(),
+                    getProviderStats(),
+                ]);
+                setCampaigns((campaignData as ProviderCampaign[]) || []);
+                setStats(statsData as ProviderStats);
+            } catch (err) {
+                console.error('Failed to load provider data:', err);
+            } finally {
+                setLoading(false);
+            }
+        }
+        loadData();
+    }, []);
 
     const handleSync = async () => {
         setIsSyncing(true);
         try {
-            await syncAzugaCampaigns();
+            const result = await syncAzugaCampaigns();
+            toast({
+                title: t('toastSyncComplete'),
+                description: `Synced ${result?.count || 0} campaigns from Azuga CRM`,
+                variant: 'success',
+            });
+            // Reload data after sync
+            const [campaignData, statsData] = await Promise.all([
+                getProviderCampaigns(),
+                getProviderStats(),
+            ]);
+            setCampaigns((campaignData as ProviderCampaign[]) || []);
+            setStats(statsData as ProviderStats);
         } catch (error) {
-            console.error("Sync failed", error);
+            toast({ title: t('toastSyncFailed'), description: t('toastSyncFailedDesc'), variant: 'error' });
         } finally {
             setIsSyncing(false);
         }
@@ -24,44 +81,30 @@ export default function ProviderDashboard() {
 
     const container = {
         hidden: { opacity: 0 },
-        show: {
-            opacity: 1,
-            transition: {
-                staggerChildren: 0.1
-            }
-        }
+        show: { opacity: 1, transition: { staggerChildren: 0.1 } }
     };
-
-    const item = {
-        hidden: { opacity: 0, y: 20 },
-        show: { opacity: 1, y: 0 }
-    };
+    const item = { hidden: { opacity: 0, y: 20 }, show: { opacity: 1, y: 0 } };
 
     return (
-        <motion.div
-            variants={container}
-            initial="hidden"
-            animate="show"
-            className="space-y-8"
-        >
-            <div className="flex items-center justify-between">
+        <motion.div variants={container} initial="hidden" animate="show" className="space-y-8">
+            <div className="flex items-center justify-between flex-wrap gap-4">
                 <div>
-                    <h1 className="text-3xl font-bold text-slate-900">Provider Dashboard</h1>
-                    <p className="text-slate-500 mt-1">Manage your campaigns and track performance</p>
+                    <h1 className="text-3xl font-bold text-foreground">{t('provider')}</h1>
+                    <p className="text-muted-foreground mt-1">{t('providerSubtitle')}</p>
                 </div>
                 <div className="flex gap-3">
                     <Button
                         variant="outline"
                         onClick={handleSync}
                         disabled={isSyncing}
-                        className="bg-white hover:bg-slate-50 border-slate-200"
+                        className="border-white/10 hover:bg-white/5"
                     >
-                        {isSyncing ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <RefreshCw className="mr-2 h-4 w-4" />}
-                        Sync from Azuga CRM
+                        {isSyncing ? <Loader2 className="me-2 h-4 w-4 animate-spin" /> : <RefreshCw className="me-2 h-4 w-4" />}
+                        {t('syncFromCRM')}
                     </Button>
-                    <Link href="/dashboard/provider/campaigns/new">
-                        <Button className="bg-blue-600 hover:bg-blue-700 shadow-lg shadow-blue-600/20 rounded-full px-6">
-                            <Plus className="mr-2 h-4 w-4" /> Create Campaign
+                    <Link href={`/${locale}/dashboard/provider/campaigns/new`}>
+                        <Button className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white rounded-full px-6 shadow-lg shadow-blue-600/20">
+                            <Plus className="me-2 h-4 w-4" /> {t('createCampaign')}
                         </Button>
                     </Link>
                 </div>
@@ -69,76 +112,100 @@ export default function ProviderDashboard() {
 
             <div className="grid gap-6 md:grid-cols-3">
                 <motion.div variants={item}>
-                    <Card className="border-0 shadow-lg shadow-blue-900/5 bg-white/60 backdrop-blur-xl hover:bg-white/80 transition-all">
-                        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                            <CardTitle className="text-sm font-medium text-slate-600">Total Leads</CardTitle>
-                            <TrendingUp className="h-4 w-4 text-blue-600" />
-                        </CardHeader>
-                        <CardContent>
-                            <div className="text-3xl font-bold text-slate-900">12</div>
-                            <p className="text-xs text-green-600 flex items-center mt-1">
-                                <ArrowUpRight className="h-3 w-3 mr-1" />
-                                +18% from last week
-                            </p>
-                        </CardContent>
-                    </Card>
+                    <StatsCard
+                        title={t('totalLeads')}
+                        value={loading ? '...' : stats.totalLeads}
+                        icon={<TrendingUp className="h-5 w-5" />}
+                        trend={{ value: 0, label: t('fromLastWeek') }}
+                        accentColor="blue"
+                    />
                 </motion.div>
-
                 <motion.div variants={item}>
-                    <Card className="border-0 shadow-lg shadow-purple-900/5 bg-white/60 backdrop-blur-xl hover:bg-white/80 transition-all">
-                        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                            <CardTitle className="text-sm font-medium text-slate-600">Active Promoters</CardTitle>
-                            <Users className="h-4 w-4 text-purple-600" />
-                        </CardHeader>
-                        <CardContent>
-                            <div className="text-3xl font-bold text-slate-900">5</div>
-                            <p className="text-xs text-slate-500 mt-1">Active across 2 campaigns</p>
-                        </CardContent>
-                    </Card>
+                    <StatsCard
+                        title={t('activePromoters')}
+                        value={loading ? '...' : stats.activePromoters}
+                        icon={<Users className="h-5 w-5" />}
+                        accentColor="purple"
+                    />
                 </motion.div>
-
                 <motion.div variants={item}>
-                    <Card className="border-0 shadow-lg shadow-indigo-900/5 bg-white/60 backdrop-blur-xl hover:bg-white/80 transition-all">
-                        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                            <CardTitle className="text-sm font-medium text-slate-600">Pending Commissions</CardTitle>
-                            <Wallet className="h-4 w-4 text-indigo-600" />
-                        </CardHeader>
-                        <CardContent>
-                            <div className="text-3xl font-bold text-slate-900">₪ 450</div>
-                            <p className="text-xs text-slate-500 mt-1">Next payout: Dec 1st</p>
-                        </CardContent>
-                    </Card>
+                    <StatsCard
+                        title={t('pendingCommissions')}
+                        value={loading ? '...' : `₪ ${stats.pendingCommissions.toLocaleString()}`}
+                        icon={<Wallet className="h-5 w-5" />}
+                        accentColor="indigo"
+                    />
                 </motion.div>
             </div>
 
             <motion.div variants={item}>
-                <h2 className="text-xl font-semibold mb-4 text-slate-900">Active Campaigns</h2>
-                <Card className="border-0 shadow-xl shadow-slate-200/50 bg-white/80 backdrop-blur-xl overflow-hidden">
-                    <CardContent className="p-0">
-                        <div className="border-b border-slate-100 bg-slate-50/50 p-4 grid grid-cols-4 font-medium text-sm text-slate-500">
-                            <div>Campaign Name</div>
-                            <div>Status</div>
-                            <div>Leads</div>
-                            <div>Actions</div>
-                        </div>
-                        <div className="divide-y divide-slate-100">
-                            <div className="p-4 grid grid-cols-4 items-center text-sm hover:bg-slate-50/50 transition-colors">
-                                <div className="font-medium text-slate-900">Summer Sale 2025</div>
-                                <div>
-                                    <span className="inline-flex items-center rounded-full bg-green-50 px-2 py-1 text-xs font-medium text-green-700 ring-1 ring-inset ring-green-600/20">
-                                        Active
-                                    </span>
-                                </div>
-                                <div className="text-slate-600">8</div>
-                                <div>
-                                    <Button variant="ghost" size="sm" className="text-blue-600 hover:text-blue-700 hover:bg-blue-50">
-                                        View Details <ArrowRight className="ml-2 h-3 w-3" />
-                                    </Button>
-                                </div>
-                            </div>
-                        </div>
-                    </CardContent>
-                </Card>
+                <h2 className="text-xl font-semibold mb-4 text-foreground">{t('activeCampaigns')}</h2>
+                {loading ? (
+                    <div className="flex justify-center py-12">
+                        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                    </div>
+                ) : campaigns.length === 0 ? (
+                    <div className="text-center py-12 glass rounded-xl border border-dashed border-white/10">
+                        <Sparkles className="h-8 w-8 text-muted-foreground mx-auto mb-3" />
+                        <p className="text-muted-foreground mb-4">{t('noCampaignsFound')}</p>
+                        <Link href={`/${locale}/dashboard/provider/campaigns/new`}>
+                            <Button className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white">
+                                <Plus className="me-2 h-4 w-4" /> {t('createCampaign')}
+                            </Button>
+                        </Link>
+                    </div>
+                ) : (
+                    <div className="grid gap-4">
+                        {campaigns.map((campaign) => (
+                            <Link
+                                key={campaign.id}
+                                href={`/${locale}/dashboard/provider/campaigns/${campaign.id}`}
+                                className="block"
+                            >
+                                <motion.div
+                                    whileHover={{ scale: 1.005, y: -2 }}
+                                    className="glass rounded-xl p-5 border border-white/5 hover:border-primary/30 transition-all cursor-pointer group"
+                                >
+                                    <div className="flex items-start justify-between gap-4">
+                                        <div className="flex-1 min-w-0">
+                                            <div className="flex items-center gap-3 mb-2">
+                                                <h3 className="font-semibold text-foreground text-lg truncate group-hover:text-primary transition-colors">
+                                                    {campaign.name}
+                                                </h3>
+                                                <Badge variant={campaign.isActive ? "success" : "default"}>
+                                                    {campaign.isActive ? t('active') : t('paused')}
+                                                </Badge>
+                                            </div>
+                                            {campaign.description && (
+                                                <p className="text-sm text-muted-foreground line-clamp-1 mb-3">
+                                                    {campaign.description}
+                                                </p>
+                                            )}
+                                            <div className="flex items-center gap-6 text-sm">
+                                                <div className="flex items-center gap-1.5 text-muted-foreground">
+                                                    <TrendingUp className="h-3.5 w-3.5 text-blue-400" />
+                                                    <span>{campaign.leadCount} {t('leads')}</span>
+                                                </div>
+                                                <div className="flex items-center gap-1.5 text-muted-foreground">
+                                                    <Wallet className="h-3.5 w-3.5 text-emerald-400" />
+                                                    <span>{campaign.commission}% {t('commissionLabel')}</span>
+                                                </div>
+                                                <div className="flex items-center gap-1.5 text-muted-foreground">
+                                                    <FileText className="h-3.5 w-3.5 text-indigo-400" />
+                                                    <span>{new Date(campaign.createdAt).toLocaleDateString(locale === 'he' ? 'he-IL' : 'en-US')}</span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div className="flex items-center text-muted-foreground group-hover:text-primary transition-colors">
+                                            <BarChart3 className="h-5 w-5 me-1" />
+                                            <ArrowRight className="h-4 w-4" />
+                                        </div>
+                                    </div>
+                                </motion.div>
+                            </Link>
+                        ))}
+                    </div>
+                )}
             </motion.div>
         </motion.div>
     );

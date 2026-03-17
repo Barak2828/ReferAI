@@ -24,6 +24,46 @@ enum ContentType {
   WHATSAPP_TEXT
   INSTAGRAM_CAPTION
   LINKEDIN_POST
+  FACEBOOK_POST
+  YOUTUBE_VIDEO
+  YOUTUBE_SHORT
+  GOOGLE_BUSINESS_POST
+  TWITTER_POST
+  TIKTOK_VIDEO
+  EMAIL_BODY
+}
+
+enum MediaType {
+  TEXT_ONLY
+  IMAGE
+  IMAGE_TEXT
+  VIDEO
+}
+
+enum SocialPlatform {
+  INSTAGRAM
+  TWITTER
+  FACEBOOK
+  WHATSAPP
+  YOUTUBE
+  GOOGLE_BUSINESS
+  LINKEDIN
+  TIKTOK
+}
+
+enum PublishJobStatus {
+  QUEUED
+  PROCESSING
+  COMPLETED
+  FAILED
+  RETRYING
+}
+
+enum PostStatus {
+  PENDING
+  POSTING
+  POSTED
+  FAILED
 }
 
 model User {
@@ -42,6 +82,9 @@ model User {
   shareLinks    ShareLink[]
   leads         Lead[]         @relation("PromoterLeads")
   payoutLedgers PayoutLedger[]
+
+  // Social media accounts (Riona integration)
+  socialAccounts SocialAccount[]
 }
 
 model Campaign {
@@ -58,9 +101,12 @@ model Campaign {
   providerId String
   provider   User   @relation(fields: [providerId], references: [id])
 
-  contents   Content[]
-  shareLinks ShareLink[]
-  leads      Lead[]
+  contents    Content[]
+  shareLinks  ShareLink[]
+  leads       Lead[]
+  postLogs    PostLog[]
+  publishJobs PublishJob[]
+  mediaAssets MediaAsset[]
 }
 
 model Content {
@@ -114,4 +160,100 @@ model PayoutLedger {
 
   promoterId String
   promoter   User   @relation(fields: [promoterId], references: [id])
+}
+
+enum ConnectionType {
+  CREDENTIALS  // Username + password (Instagram, etc.)
+  OAUTH        // OAuth2 tokens (Facebook, Google, YouTube)
+  API_KEY      // API key + config (WhatsApp Cloud API)
+}
+
+model SocialAccount {
+  id                    String         @id @default(uuid())
+  platform              SocialPlatform
+  username              String
+  connectionType        ConnectionType @default(CREDENTIALS)
+  encryptedCredentials  String         // AES-256-GCM encrypted JSON
+  isActive              Boolean        @default(true)
+  lastUsedAt            DateTime?
+  createdAt             DateTime       @default(now())
+  updatedAt             DateTime       @updatedAt
+
+  userId      String
+  user        User          @relation(fields: [userId], references: [id])
+  postLogs    PostLog[]
+  oauthToken  OAuthToken?
+  publishJobs PublishJob[]
+
+  @@unique([userId, platform, username])
+}
+
+model OAuthToken {
+  id              String   @id @default(uuid())
+  accessToken     String   // AES-256-GCM encrypted
+  refreshToken    String?  // AES-256-GCM encrypted
+  tokenExpiresAt  DateTime?
+  platformUserId  String?  // e.g. Facebook page ID, YouTube channel ID
+  platformMeta    String?  // JSON: { pageId, pageName, phoneNumberId, businessName, locationId, etc. }
+  scopes          String?  // Comma-separated scopes granted
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  accountId String        @unique
+  account   SocialAccount @relation(fields: [accountId], references: [id], onDelete: Cascade)
+}
+
+model PublishJob {
+  id          String           @id @default(uuid())
+  status      PublishJobStatus @default(QUEUED)
+  platform    SocialPlatform
+  contentText String
+  contentMeta String?          // JSON: { videoUrl, thumbnailUrl, mediaType, etc. }
+  mediaType   MediaType        @default(TEXT_ONLY)
+  mediaAssetId String?
+  mediaAsset   MediaAsset?     @relation(fields: [mediaAssetId], references: [id])
+  errorMsg    String?
+  retryCount  Int              @default(0)
+  maxRetries  Int              @default(3)
+  scheduledAt DateTime?
+  startedAt   DateTime?
+  completedAt DateTime?
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+
+  campaignId String
+  campaign   Campaign      @relation(fields: [campaignId], references: [id])
+
+  accountId String
+  account   SocialAccount @relation(fields: [accountId], references: [id])
+}
+
+model PostLog {
+  id          String         @id @default(uuid())
+  status      PostStatus     @default(PENDING)
+  platform    SocialPlatform
+  contentText String
+  errorMsg    String?
+  postedAt    DateTime?
+  createdAt   DateTime       @default(now())
+
+  campaignId String
+  campaign   Campaign      @relation(fields: [campaignId], references: [id])
+
+  accountId String
+  account   SocialAccount @relation(fields: [accountId], references: [id])
+}
+
+model MediaAsset {
+  id          String   @id @default(uuid())
+  type        String   // 'image' | 'video'
+  provider    String   // 'stability' | 'kling' | 'heygen' | 'gemini'
+  prompt      String
+  url         String   // Public URL (Supabase Storage)
+  metadata    String?  // JSON: { width, height, format, duration, aspectRatio, etc. }
+  createdAt   DateTime @default(now())
+
+  campaignId  String?
+  campaign    Campaign?    @relation(fields: [campaignId], references: [id])
+  publishJobs PublishJob[]
 }

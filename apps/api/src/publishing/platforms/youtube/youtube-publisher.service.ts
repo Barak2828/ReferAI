@@ -1,0 +1,241 @@
+import { Injectable, Logger } from '@nestjs/common';
+import { HttpService } from '@nestjs/axios';
+import { firstValueFrom } from 'rxjs';
+import { IPlatformPublisher, PublishRequest, PublishResult, AccountValidationResult } from '../platform.interface';
+import { PrismaService } from '../../../prisma/prisma.service';
+import { OAuthService } from '../../../oauth/oauth.service';
+
+@Injectable()
+export class YouTubePublisherService implements IPlatformPublisher {
+    private readonly logger = new Logger(YouTubePublisherService.name);
+    readonly platform = 'YOUTUBE';
+
+    private readonly youtubeApiBase = 'https://www.googleapis.com/youtube/v3';
+    private readonly heygenApiBase = 'https://api.heygen.com';
+
+    constructor(
+        private readonly httpService: HttpService,
+        private readonly prisma: PrismaService,
+        private readonly oauthService: OAuthService,
+    ) {}
+
+    /**
+     * Generate an AI video using HeyGen API from campaign text.
+     */
+    async generateVideo(text: string, language: string = 'en'): Promise<{
+        success: boolean;
+        videoUrl?: string;
+        videoId?: string;
+        thumbnailUrl?: string;
+        error?: string;
+    }> {
+        const apiKey = process.env.HEYGEN_API_KEY;
+        if (!apiKey) {
+            return { success: false, error: 'HEYGEN_API_KEY not configured' };
+        }
+
+        try {
+            // Step 1: Submit video generation request
+            const { data: createData } = await firstValueFrom(
+                this.httpService.post(
+                    `${this.heygenApiBase}/v2/video/generate`,
+                    {
+                        video_inputs: [
+                            {
+                                character: {
+                                    type: 'avatar',
+                                    avatar_id: 'default', // Use default avatar
+                                    avatar_style: 'normal',
+                                },
+                                voice: {
+                                    type: 'text',
+                                    input_text: text.substring(0, 1500), // HeyGen text limit
+                                    voice_id: language === 'he' ? 'he-IL-AvriNeural' : 'en-US-JennyNeural',
+                                },
+                            },
+                        ],
+                        dimension: { width: 1920, height: 1080 },
+                    },
+                    {
+                        headers: {
+                            'X-Api-Key': apiKey,
+                            'Content-Type': 'application/json',
+                        },
+                        timeout: 30000,
+                    },
+                ),
+            );
+
+            const videoId = createData?.data?.video_id;
+            if (!videoId) {
+                return { success: false, error: 'Failed to create video — no video ID returned' };
+            }
+
+            // Step 2: Poll for video completion (max 5 minutes)
+            const maxPolls = 30;
+            const pollInterval = 10000; // 10 seconds
+
+            for (let i = 0; i < maxPolls; i++) {
+                await new Promise((resolve) => setTimeout(resolve, pollInterval));
+
+                const { data: statusData } = await firstValueFrom(
+                    this.httpService.get(
+                        `${this.heygenApiBase}/v1/video_status.get?video_id=${videoId}`,
+                        {
+                            headers: { 'X-Api-Key': apiKey },
+                            timeout: 10000,
+                        },
+                    ),
+                );
+
+                const status = statusData?.data?.status;
+                if (status === 'completed') {
+                    return {
+                        success: true,
+                        videoUrl: statusData.data.video_url,
+                        videoId,
+                        thumbnailUrl: statusData.data.thumbnail_url,
+                    };
+                }
+                if (status === 'failed') {
+                    return { success: false, error: 'Video generation failed', videoId };
+                }
+                // Continue polling...
+            }
+
+            return { success: false, error: 'Video generation timed out', videoId };
+        } catch (error: any) {
+            this.logger.error(`HeyGen video generation failed: ${error.message}`);
+            return { success: false, error: error.message };
+        }
+    }
+
+    async publish(request: PublishRequest): Promise<PublishResult> {
+        try {
+            const token = await this.oauthService.getValidToken(request.accountId);
+            if (!token) {
+                return { success: false, message: 'YouTube account not connected. Please reconnect with Google.' };
+            }
+
+            const accessToken = this.oauthService.decryptToken(token.accessToken);
+
+            // Get video URL from contentMeta (should be generated by generateVideo first)
+            const videoUrl = request.contentMeta?.videoUrl;
+            if (!videoUrl) {
+                return { success: false, message: 'No video URL provided. Generate a video first.' };
+            }
+
+            // Step 1: Download the video to a buffer
+            const { data: videoBuffer } = await firstValueFrom(
+                this.httpService.get(videoUrl, {
+                    responseType: 'arraybuffer',
+                    timeout: 120000,
+                }),
+            );
+
+            // Step 2: Start resumable upload to YouTube
+            const isShorts = request.contentMeta?.isShorts === true;
+            const baseTitle = request.contentMeta?.title || 'Campaign Video';
+            const title = isShorts && !baseTitle.includes('#Shorts')
+                ? `${baseTitle} #Shorts`
+                : baseTitle;
+            const description = request.contentText;
+            const baseTags = request.contentMeta?.tags || ['campaign', 'referai'];
+            const tags = isShorts
+                ? [...baseTags, 'Shorts', 'YouTubeShorts']
+                : baseTags;
+
+            const { headers: uploadHeaders } = await firstValueFrom(
+                this.httpService.post(
+                    `${this.youtubeApiBase}/videos?uploadType=resumable&part=snippet,status`,
+                    {
+                        snippet: {
+                            title,
+                            description,
+                            tags,
+                            categoryId: '22', // People & Blogs
+                        },
+                        status: {
+                            privacyStatus: request.contentMeta?.privacyStatus || 'public',
+                        },
+                    },
+                    {
+                        headers: {
+                            Authorization: `Bearer ${accessToken}`,
+                            'Content-Type': 'application/json',
+                            'X-Upload-Content-Length': videoBuffer.length.toString(),
+                            'X-Upload-Content-Type': 'video/mp4',
+                        },
+                        timeout: 30000,
+                    },
+                ),
+            );
+
+            const uploadUrl = uploadHeaders['location'];
+            if (!uploadUrl) {
+                return { success: false, message: 'Failed to initiate YouTube upload' };
+            }
+
+            // Step 3: Upload video data
+            const { data: uploadResult } = await firstValueFrom(
+                this.httpService.put(uploadUrl, videoBuffer, {
+                    headers: {
+                        'Content-Type': 'video/mp4',
+                        'Content-Length': videoBuffer.length.toString(),
+                    },
+                    timeout: 300000, // 5 min for upload
+                }),
+            );
+
+            this.logger.log(`Uploaded to YouTube: ${uploadResult.id}`);
+
+            return {
+                success: true,
+                message: 'Video uploaded to YouTube successfully',
+                platformPostId: uploadResult.id,
+                platformUrl: `https://www.youtube.com/watch?v=${uploadResult.id}`,
+                metadata: {
+                    thumbnailUrl: request.contentMeta?.thumbnailUrl,
+                    title,
+                },
+            };
+        } catch (error: any) {
+            const errMsg = error.response?.data?.error?.message || error.message;
+            this.logger.error(`YouTube publish failed: ${errMsg}`);
+            return { success: false, message: `YouTube publish failed: ${errMsg}` };
+        }
+    }
+
+    async validateAccount(accountId: string): Promise<AccountValidationResult> {
+        try {
+            const token = await this.oauthService.getValidToken(accountId);
+            if (!token) {
+                return { valid: false, message: 'No valid YouTube token found' };
+            }
+
+            const accessToken = this.oauthService.decryptToken(token.accessToken);
+
+            const { data } = await firstValueFrom(
+                this.httpService.get(
+                    `${this.youtubeApiBase}/channels?part=snippet&mine=true`,
+                    {
+                        headers: { Authorization: `Bearer ${accessToken}` },
+                        timeout: 10000,
+                    },
+                ),
+            );
+
+            const channel = data.items?.[0];
+            return {
+                valid: true,
+                message: 'YouTube channel connected',
+                accountInfo: {
+                    displayName: channel?.snippet?.title || 'YouTube Channel',
+                    profileUrl: `https://www.youtube.com/channel/${channel?.id}`,
+                },
+            };
+        } catch (error: any) {
+            return { valid: false, message: error.message || 'Failed to validate YouTube account' };
+        }
+    }
+}

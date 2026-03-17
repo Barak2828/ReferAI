@@ -1,64 +1,147 @@
 'use server'
 
-interface GenerateContentParams {
-    description: string;
-    platforms: string[]; // 'whatsapp', 'instagram', 'linkedin'
-    language: string; // 'he', 'en'
+import { generateContent, analyzeLeads } from '@/lib/ai';
+import type { GenerateContentParams, GenerateContentResult, AIProvider } from '@/types';
+
+export async function generateCampaignContent(
+    data: { description: string; platforms: string[]; language: string; provider?: AIProvider }
+): Promise<GenerateContentResult> {
+    try {
+        const result = await generateContent({
+            description: data.description,
+            platforms: data.platforms as GenerateContentParams['platforms'],
+            language: data.language as 'he' | 'en',
+            provider: data.provider,
+        });
+        return result;
+    } catch (error) {
+        console.error('AI generation error:', error);
+        return {
+            success: false,
+            content: {},
+            error: error instanceof Error ? error.message : 'Unknown error',
+        };
+    }
 }
 
-export async function generateCampaignContent(data: GenerateContentParams) {
-    // Mock AI latency
-    await new Promise((resolve) => setTimeout(resolve, 1500));
-
-    const content: Record<string, string> = {};
-    const { description, language } = data;
-
-    // Simple template-based generation for the Pilot
-    if (language === 'he') {
-        if (data.platforms.includes('whatsapp')) {
-            content.whatsapp = `👋 היי! רציתי להמליץ לך על ${description}. \n\nזה בדיוק מה שחיפשת! הנה לינק עם הטבה מיוחדת: [LINK] 🎁`;
-        }
-        if (data.platforms.includes('instagram')) {
-            content.instagram = `✨ גיליתי משהו מדהים: ${description}! \n\nממש שווה בדיקה. לינק בביו! 🔗\n\n#המלצה #טיפ #ישראל #NewFind`;
-        }
-        if (data.platforms.includes('linkedin')) {
-            content.linkedin = `🚀 שמח לשתף שירות מצוין שנתקלתי בו לאחרונה: ${description}.\n\nערך אמיתי ומקצועיות ברמה גבוהה. ממליץ בחום לבדוק! 👇\n\n[LINK]\n\n#חדשנות #עסקים #המלצה #Networking`;
-        }
-        if (data.platforms.includes('facebook')) {
-            content.facebook = `📢 חברים, שימו לב! \n\nנתקלתי ב-${description} והייתי חייב לשתף. זה פתרון מעולה למי שמחפש איכות. \n\nכל הפרטים כאן: [LINK] 👍`;
-        }
-        if (data.platforms.includes('twitter')) {
-            content.twitter = `מצאתי את זה: ${description} 🤯\n\nפשוט עובד. תודו לי אחר כך.\n\n[LINK]\n\n#המלצה #TechIL`;
-        }
-        if (data.platforms.includes('tiktok')) {
-            content.tiktok = `[SCENE: מול מצלמה, התלהבות]\n\n"תקשיבו, אתם לא מאמינים מה מצאתי..."\n\n[CUT: מציג מסך/מוצר]\n\n"${description} - זה משנה את המשחק!"\n\n[SCENE: הצבעה ללינק]\n\n"לינק בביו, רוצו!" 🏃‍♂️💨\n\n#פוריו #טיקטוקישראל #LifeHack`;
-        }
-        if (data.platforms.includes('email')) {
-            content.email = `נושא: המלצה אישית: משהו שיעניין אותך\n\nהיי,\n\nנתקלתי ב-${description} וחשבתי עליך.\n\nמדובר בפתרון שממש עזר לי/הרשים אותי, ובטוח שזה יכול להיות רלוונטי גם עבורך.\n\nאפשר לראות את כל הפרטים כאן: [LINK]\n\nדבר איתי אם יש שאלות!\n\nבברכה,\n[השם שלך]`;
-        }
-    } else {
-        if (data.platforms.includes('whatsapp')) {
-            content.whatsapp = `👋 Hey! I wanted to recommend ${description} to you. \n\nCheck it out here, I think you'll love it: [LINK] 🎁`;
-        }
-        if (data.platforms.includes('instagram')) {
-            content.instagram = `✨ Just discovered ${description}! It's a game changer. \n\nLink in bio to verify! 🔗\n\n#Recommendation #MustHave #Tip`;
-        }
-        if (data.platforms.includes('linkedin')) {
-            content.linkedin = `🚀 Excited to share this with my professional network: ${description}.\n\nOutstanding value and execution. Highly recommended! 👇\n\n[LINK]`;
-        }
-        if (data.platforms.includes('facebook')) {
-            content.facebook = `📢 Heads up friends! \n\nI came across ${description} and just had to share. Great solution if you're looking for quality. \n\nDetails here: [LINK] 👍`;
-        }
-        if (data.platforms.includes('twitter')) {
-            content.twitter = `Found this: ${description} 🤯\n\nIt just works. Thank me later.\n\n[LINK]\n\n#Tech #Recommendation`;
-        }
-        if (data.platforms.includes('tiktok')) {
-            content.tiktok = `[SCENE: Talking head, excited]\n\n"Guys, you won't believe what I found..."\n\n[CUT: Showing screen/product]\n\n"${description} - this is a game changer!"\n\n[SCENE: Pointing to link]\n\n"Link in bio, run!" 🏃‍♂️💨\n\n#FYP #TikTokMadeMeBuyIt #LifeHack`;
-        }
-        if (data.platforms.includes('email')) {
-            content.email = `Subject: Personal Recommendation: Check this out\n\nHi,\n\nI came across ${description} and thought of you.\n\nIt's a solution that really impressed me, and I'm sure it could be relevant for you too.\n\nYou can see all the details here: [LINK]\n\nLet me know if you have questions!\n\nBest,\n[Your Name]`;
-        }
+export async function analyzeCampaignLeads(
+    campaignDescription: string,
+    leads: Array<Record<string, unknown>>
+): Promise<{ success: boolean; analysis?: string; error?: string }> {
+    try {
+        const analysis = await analyzeLeads(leads, campaignDescription);
+        return { success: true, analysis };
+    } catch (error) {
+        console.error('Lead analysis error:', error);
+        return {
+            success: false,
+            error: error instanceof Error ? error.message : 'Unknown error',
+        };
     }
+}
 
-    return { success: true, content };
+// ─── AI Media Generation ─────────────────────────────────────
+
+import {
+    generateAIImage,
+    generateAIVideoKling,
+    getMediaProviders,
+    analyzeChannel,
+    generateSmartPrompts,
+    type MediaGenerationResult,
+    type SmartPromptResult,
+} from '@/lib/riona/client';
+
+export async function generateCampaignImage(data: {
+    prompt: string;
+    aspectRatio?: '1:1' | '16:9' | '9:16' | '4:3' | '3:4';
+    style?: string;
+    campaignId?: string;
+    variants?: number;
+}): Promise<MediaGenerationResult> {
+    try {
+        return await generateAIImage(data.prompt, {
+            aspectRatio: data.aspectRatio,
+            style: data.style,
+            campaignId: data.campaignId,
+            variants: data.variants,
+        });
+    } catch (error) {
+        console.error('Image generation error:', error);
+        return {
+            success: false,
+            assets: [],
+            error: error instanceof Error ? error.message : 'Unknown error',
+        };
+    }
+}
+
+export async function generateCampaignVideo(data: {
+    prompt: string;
+    aspectRatio?: '16:9' | '9:16' | '1:1';
+    duration?: 5 | 10;
+    campaignId?: string;
+}): Promise<MediaGenerationResult> {
+    try {
+        return await generateAIVideoKling(data.prompt, {
+            aspectRatio: data.aspectRatio,
+            duration: data.duration,
+            campaignId: data.campaignId,
+        });
+    } catch (error) {
+        console.error('Video generation error:', error);
+        return {
+            success: false,
+            assets: [],
+            error: error instanceof Error ? error.message : 'Unknown error',
+        };
+    }
+}
+
+export async function getAIMediaProviders() {
+    try {
+        return await getMediaProviders();
+    } catch {
+        return { image: {}, video: {} };
+    }
+}
+
+export async function analyzeUserChannel(
+    userId: string,
+    platform: string,
+): Promise<{ success: boolean; analysis?: Record<string, any>; error?: string }> {
+    try {
+        return await analyzeChannel(userId, platform);
+    } catch (error) {
+        console.error('Channel analysis error:', error);
+        return {
+            success: false,
+            error: error instanceof Error ? error.message : 'Unknown error',
+        };
+    }
+}
+
+export async function getSmartPrompts(data: {
+    userId: string;
+    campaignDescription: string;
+    campaignName: string;
+    targetPlatform: string;
+    language?: string;
+}): Promise<SmartPromptResult> {
+    try {
+        return await generateSmartPrompts(
+            data.userId,
+            data.campaignDescription,
+            data.campaignName,
+            data.targetPlatform,
+            data.language,
+        );
+    } catch (error) {
+        console.error('Smart prompts error:', error);
+        return {
+            success: false,
+            channelAnalysis: [],
+            variants: [],
+        };
+    }
 }

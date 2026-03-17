@@ -1,0 +1,4 @@
+{"level":"\u001b[32minfo\u001b[39m","message":"Loading Adrian's custom style configuration from: /Users/barak_azuga/Library/CloudStorage/GoogleDrive-barak@azugamarketing.com/האחסון שלי/ReferAI/.claude/worktrees/dreamy-hopper/services/riona-ai-agent/build/config/adrian-style","timestamp":"8:17:11 PM"}
+{"level":"\u001b[32minfo\u001b[39m","message":"✅ Adrian's style loaded successfully!","timestamp":"8:17:11 PM"}
+{"level":"\u001b[32minfo\u001b[39m","message":"Server is running on port 3002","timestamp":"8:17:11 PM"}
+{"level":"\u001b[32minfo\u001b[39m","message":"MongoDB connected","timestamp":"8:17:11 PM"}

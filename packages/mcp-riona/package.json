@@ -1,0 +1,21 @@
+{
+    "name": "@refer-ai/mcp-riona",
+    "version": "0.1.0",
+    "private": true,
+    "description": "MCP server exposing Riona AI Agent social media automation tools",
+    "main": "dist/index.js",
+    "scripts": {
+        "build": "tsc",
+        "start": "node dist/index.js",
+        "dev": "ts-node src/index.ts"
+    },
+    "dependencies": {
+        "@modelcontextprotocol/sdk": "^1.0.0",
+        "zod": "^3.23.0"
+    },
+    "devDependencies": {
+        "typescript": "^5.1.3",
+        "ts-node": "^10.9.1",
+        "@types/node": "^20.3.1"
+    }
+}
