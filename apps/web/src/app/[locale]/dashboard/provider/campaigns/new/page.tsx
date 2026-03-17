@@ -11,7 +11,7 @@ import { useToast } from "@/components/ui/toast";
 import { useState, useEffect } from "react";
 import { useTranslations } from 'next-intl';
 import { useLocale } from "next-intl";
-import { generateCampaignContent, generateCampaignImage, generateCampaignVideo, getSmartPrompts } from "@/app/actions/ai";
+import { generateCampaignContent, generateCampaignImage, generateCampaignVideo, getSmartPrompts, type ImageProvider } from "@/app/actions/ai";
 import type { MediaAssetResult, PromptVariant } from "@/lib/riona/client";
 import { createCampaign } from "@/app/actions/campaign";
 import {
@@ -139,6 +139,7 @@ export default function NewCampaignPage() {
     const [dmTarget, setDmTarget] = useState("");
 
     // AI Image/Video generation state
+    const [imageProvider, setImageProvider] = useState<ImageProvider>('dalle');
     const [imagePrompt, setImagePrompt] = useState("");
     const [videoPrompt, setVideoPrompt] = useState("");
     const [imageAspectRatio, setImageAspectRatio] = useState<'1:1' | '16:9' | '9:16'>('1:1');
@@ -231,6 +232,7 @@ export default function NewCampaignPage() {
                 prompt: imagePrompt,
                 aspectRatio: imageAspectRatio as any,
                 variants: 3,
+                provider: imageProvider,
             });
             if (result.success && result.assets.length > 0) {
                 setGeneratedImages(result.assets);
@@ -720,6 +722,34 @@ export default function NewCampaignPage() {
 
                             <div className="space-y-3">
                                 <div className="space-y-2">
+                                    <label className="text-sm font-medium text-muted-foreground">{t('imageProvider')}</label>
+                                    <div className="flex gap-2">
+                                        <button
+                                            onClick={() => setImageProvider('dalle')}
+                                            className={cn(
+                                                "px-3 py-1.5 rounded-lg text-sm font-medium border transition-all",
+                                                imageProvider === 'dalle'
+                                                    ? "border-green-500 bg-green-500/10 text-green-300"
+                                                    : "border-white/10 text-muted-foreground hover:bg-white/5"
+                                            )}
+                                        >
+                                            {t('dalleProvider')}
+                                        </button>
+                                        <button
+                                            onClick={() => setImageProvider('gemini')}
+                                            className={cn(
+                                                "px-3 py-1.5 rounded-lg text-sm font-medium border transition-all",
+                                                imageProvider === 'gemini'
+                                                    ? "border-blue-500 bg-blue-500/10 text-blue-300"
+                                                    : "border-white/10 text-muted-foreground hover:bg-white/5"
+                                            )}
+                                        >
+                                            {t('geminiProvider')}
+                                        </button>
+                                    </div>
+                                </div>
+
+                                <div className="space-y-2">
                                     <label className="text-sm font-medium text-muted-foreground">{t('imagePromptLabel')}</label>
                                     <Input
                                         placeholder={t('imagePromptPlaceholder')}
@@ -802,8 +832,11 @@ export default function NewCampaignPage() {
                             )}
                         </div>
 
-                        {/* AI Video Engine */}
-                        <div className="glass rounded-xl p-6 space-y-4 border border-violet-500/20">
+                        {/* AI Video Engine (Coming Soon) */}
+                        <div className="glass rounded-xl p-6 space-y-4 border border-violet-500/20 opacity-50 relative">
+                            <div className="absolute top-3 right-3 px-2 py-0.5 rounded-full bg-violet-500/20 border border-violet-500/30 text-xs text-violet-300 font-medium">
+                                {t('videoComingSoon')}
+                            </div>
                             <div>
                                 <h4 className="font-semibold text-foreground mb-1 flex items-center gap-2">
                                     <Video className="h-4 w-4 text-violet-400" />
@@ -820,59 +853,17 @@ export default function NewCampaignPage() {
                                         value={videoPrompt}
                                         onChange={(e) => setVideoPrompt(e.target.value)}
                                         className="bg-navy-800/50 border-white/10"
+                                        disabled
                                     />
                                 </div>
 
-                                <div className="space-y-2">
-                                    <label className="text-sm font-medium text-muted-foreground">{t('aspectRatio')}</label>
-                                    <div className="flex gap-2">
-                                        {(['9:16', '16:9'] as const).map((ratio) => (
-                                            <button
-                                                key={ratio}
-                                                onClick={() => setVideoAspectRatio(ratio)}
-                                                className={cn(
-                                                    "px-3 py-1.5 rounded-lg text-sm font-medium border transition-all",
-                                                    videoAspectRatio === ratio
-                                                        ? "border-violet-500 bg-violet-500/10 text-violet-300"
-                                                        : "border-white/10 text-muted-foreground hover:bg-white/5"
-                                                )}
-                                            >
-                                                {ratio} {ratio === '9:16' ? '(Shorts/TikTok)' : '(YouTube)'}
-                                            </button>
-                                        ))}
-                                    </div>
-                                </div>
-
                                 <Button
-                                    className="w-full bg-gradient-to-r from-violet-600 to-purple-600 hover:from-violet-500 hover:to-purple-500 text-white shadow-lg shadow-violet-500/20"
-                                    onClick={handleGenerateVideo}
-                                    disabled={isGeneratingVideo || !videoPrompt}
+                                    className="w-full bg-gradient-to-r from-violet-600 to-purple-600 text-white shadow-lg shadow-violet-500/20 cursor-not-allowed"
+                                    disabled
                                 >
-                                    {isGeneratingVideo ? (
-                                        <><Loader2 className="me-2 h-4 w-4 animate-spin" />{t('generatingVideo')}</>
-                                    ) : (
-                                        <><Video className="me-2 h-4 w-4" />{t('generateVideo')}</>
-                                    )}
+                                    <Video className="me-2 h-4 w-4" />{t('videoComingSoon')}
                                 </Button>
                             </div>
-
-                            {/* Generated Video Preview */}
-                            {generatedVideo && (
-                                <div className="space-y-3">
-                                    <div className="flex items-center gap-2">
-                                        <Check className="h-4 w-4 text-emerald-400" />
-                                        <span className="text-sm font-semibold text-foreground">{t('videoGenerated')}</span>
-                                    </div>
-                                    <div className="rounded-lg overflow-hidden border border-white/10">
-                                        <video
-                                            src={generatedVideo.url}
-                                            controls
-                                            className="w-full max-h-80"
-                                            poster={generatedVideo.metadata?.thumbnailUrl}
-                                        />
-                                    </div>
-                                </div>
-                            )}
                         </div>
                     </div>
                 )}

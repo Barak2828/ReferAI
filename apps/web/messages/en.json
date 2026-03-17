@@ -261,7 +261,11 @@
         "igBusinessDesc": "Connect via Facebook for post/reel publishing. Requires an Instagram Business or Creator account linked to a Facebook Page.",
         "igPersonalDesc": "Connect with username/password for DM automation via Riona.",
         "igConnectViaFacebook": "Connect via Facebook",
-        "comingSoon": "Coming Soon"
+        "comingSoon": "Coming Soon",
+        "imageProvider": "Image Provider",
+        "dalleProvider": "DALL-E 3 (OpenAI)",
+        "geminiProvider": "Gemini Imagen (Google)",
+        "videoComingSoon": "Video (Coming Soon)"
     },
     "SignUp": {
         "title": "Create Your Account",

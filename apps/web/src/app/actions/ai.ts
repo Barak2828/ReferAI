@@ -40,17 +40,18 @@ export async function analyzeCampaignLeads(
     }
 }
 
-// ─── AI Media Generation ─────────────────────────────────────
+// ─── AI Media Generation (Direct — no NestJS dependency) ─────
 
+import { generateImageWithDalle } from '@/lib/ai/providers/dalle';
+import { generateImageWithGemini } from '@/lib/ai/providers/gemini-imagen';
 import {
-    generateAIImage,
-    generateAIVideoKling,
-    getMediaProviders,
     analyzeChannel,
     generateSmartPrompts,
     type MediaGenerationResult,
     type SmartPromptResult,
 } from '@/lib/riona/client';
+
+export type ImageProvider = 'dalle' | 'gemini';
 
 export async function generateCampaignImage(data: {
     prompt: string;
@@ -58,14 +59,16 @@ export async function generateCampaignImage(data: {
     style?: string;
     campaignId?: string;
     variants?: number;
+    provider?: ImageProvider;
 }): Promise<MediaGenerationResult> {
     try {
-        return await generateAIImage(data.prompt, {
-            aspectRatio: data.aspectRatio,
-            style: data.style,
-            campaignId: data.campaignId,
-            variants: data.variants,
-        });
+        const provider = data.provider || 'dalle';
+        const variants = data.variants || 3;
+
+        if (provider === 'gemini') {
+            return await generateImageWithGemini(data.prompt, data.aspectRatio, variants);
+        }
+        return await generateImageWithDalle(data.prompt, data.aspectRatio, variants);
     } catch (error) {
         console.error('Image generation error:', error);
         return {
@@ -82,28 +85,22 @@ export async function generateCampaignVideo(data: {
     duration?: 5 | 10;
     campaignId?: string;
 }): Promise<MediaGenerationResult> {
-    try {
-        return await generateAIVideoKling(data.prompt, {
-            aspectRatio: data.aspectRatio,
-            duration: data.duration,
-            campaignId: data.campaignId,
-        });
-    } catch (error) {
-        console.error('Video generation error:', error);
-        return {
-            success: false,
-            assets: [],
-            error: error instanceof Error ? error.message : 'Unknown error',
-        };
-    }
+    // Video generation is not yet available (Coming Soon)
+    return {
+        success: false,
+        assets: [],
+        error: 'Video generation is coming soon. Stay tuned!',
+    };
 }
 
 export async function getAIMediaProviders() {
-    try {
-        return await getMediaProviders();
-    } catch {
-        return { image: {}, video: {} };
-    }
+    return {
+        image: {
+            'dall-e-3': !!process.env.OPENAI_API_KEY,
+            'gemini-imagen': !!process.env.GOOGLE_AI_API_KEY,
+        },
+        video: {},
+    };
 }
 
 export async function analyzeUserChannel(

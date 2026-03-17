@@ -261,7 +261,11 @@
         "igBusinessDesc": "חבר דרך פייסבוק לפרסום פוסטים ורילס. דורש חשבון אינסטגרם עסקי/יוצר המקושר לדף פייסבוק.",
         "igPersonalDesc": "חבר עם שם משתמש וסיסמה לאוטומציית DM דרך Riona.",
         "igConnectViaFacebook": "התחבר דרך פייסבוק",
-        "comingSoon": "בקרוב"
+        "comingSoon": "בקרוב",
+        "imageProvider": "ספק תמונות",
+        "dalleProvider": "DALL-E 3 (OpenAI)",
+        "geminiProvider": "Gemini Imagen (Google)",
+        "videoComingSoon": "וידאו (בקרוב)"
     },
     "SignUp": {
         "title": "צור את החשבון שלך",
