@@ -14,45 +14,50 @@ export async function generateImageWithGemini(
     const client = new GoogleGenAI({ apiKey });
 
     try {
-        const response = await client.models.generateImages({
-            model: 'imagen-3.0-generate-002',
-            prompt,
-            config: {
-                numberOfImages: Math.min(variants, 4), // Imagen supports up to 4
-            },
-        });
-
+        // Use Gemini native image generation (works on free tier)
         const assets: MediaAssetResult[] = [];
 
-        if (response.generatedImages && response.generatedImages.length > 0) {
-            for (let i = 0; i < response.generatedImages.length; i++) {
-                const img = response.generatedImages[i];
-                if (img.image?.imageBytes) {
-                    // Convert base64 bytes to a data URL
-                    const dataUrl = `data:image/png;base64,${img.image.imageBytes}`;
-                    assets.push({
-                        id: `gemini-${Date.now()}-${i}`,
-                        url: dataUrl,
-                        type: 'image',
-                        provider: 'gemini-imagen',
-                        prompt,
-                        metadata: {
-                            aspectRatio,
-                            variant: i + 1,
-                        },
-                    });
+        for (let i = 0; i < Math.min(variants, 4); i++) {
+            const response = await client.models.generateContent({
+                model: 'gemini-2.5-flash-image',
+                contents: `Generate an image: ${prompt}. Variation ${i + 1} of ${variants}.`,
+                config: {
+                    responseModalities: ['TEXT', 'IMAGE'],
+                },
+            });
+
+            if (response.candidates && response.candidates[0]?.content?.parts) {
+                for (const part of response.candidates[0].content.parts) {
+                    if (part.inlineData?.mimeType?.startsWith('image/')) {
+                        const dataUrl = `data:${part.inlineData.mimeType};base64,${part.inlineData.data}`;
+                        assets.push({
+                            id: `gemini-${Date.now()}-${i}`,
+                            url: dataUrl,
+                            type: 'image',
+                            provider: 'gemini-imagen',
+                            prompt,
+                            metadata: {
+                                aspectRatio,
+                                variant: i + 1,
+                            },
+                        });
+                        break; // One image per variant
+                    }
                 }
             }
         }
 
         if (assets.length === 0) {
-            return { success: false, assets: [], error: 'Gemini Imagen returned no images' };
+            return { success: false, assets: [], error: 'Gemini returned no images. Try a different prompt.' };
         }
 
         return { success: true, assets };
     } catch (error) {
-        console.error('Gemini Imagen error:', error);
-        const message = error instanceof Error ? error.message : 'Unknown Gemini Imagen error';
+        console.error('Gemini image generation error:', error);
+        const message = error instanceof Error ? error.message : 'Unknown Gemini error';
+        if (message.includes('paid plan')) {
+            return { success: false, assets: [], error: 'Gemini Imagen requires a paid Google AI plan. Please upgrade at https://ai.dev/projects' };
+        }
         return { success: false, assets: [], error: message };
     }
 }

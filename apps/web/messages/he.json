@@ -273,6 +273,9 @@
         "signUp": "הרשמה",
         "confirmPassword": "אשר סיסמה",
         "passwordMismatch": "הסיסמאות אינן תואמות",
+        "checkEmail": "בדוק את האימייל שלך",
+        "confirmationSent": "שלחנו קישור אישור לאימייל שלך. לחץ עליו כדי להפעיל את החשבון.",
+        "backToLogin": "חזרה להתחברות",
         "alreadyHaveAccount": "כבר יש לך חשבון?",
         "signIn": "התחבר"
     }

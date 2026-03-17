@@ -32,7 +32,7 @@ export async function signup(formData: FormData) {
     const password = formData.get('password') as string
     const locale = formData.get('locale') as string || 'he'
 
-    const { error } = await supabase.auth.signUp({
+    const { data, error } = await supabase.auth.signUp({
         email,
         password,
     })
@@ -41,8 +41,14 @@ export async function signup(formData: FormData) {
         return { error: error.message }
     }
 
-    revalidatePath('/', 'layout')
-    redirect(`/${locale}/dashboard/provider`)
+    // If email confirmation is required, the session will be null
+    if (data.session) {
+        revalidatePath('/', 'layout')
+        redirect(`/${locale}/dashboard/provider`)
+    }
+
+    // User created but needs email confirmation
+    return { needsConfirmation: true }
 }
 
 export async function signInWithOAuth(provider: 'google' | 'facebook', locale: string = 'he') {

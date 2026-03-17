@@ -273,6 +273,9 @@
         "signUp": "Sign Up",
         "confirmPassword": "Confirm Password",
         "passwordMismatch": "Passwords do not match",
+        "checkEmail": "Check Your Email",
+        "confirmationSent": "We've sent a confirmation link to your email. Please click it to activate your account.",
+        "backToLogin": "Back to Sign In",
         "alreadyHaveAccount": "Already have an account?",
         "signIn": "Sign In"
     }

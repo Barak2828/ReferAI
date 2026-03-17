@@ -13,6 +13,7 @@ import { Sparkles } from "lucide-react";
 export default function SignUpPage() {
     const [error, setError] = useState<string | null>(null);
     const [confirmPassword, setConfirmPassword] = useState("");
+    const [showConfirmation, setShowConfirmation] = useState(false);
     const t = useTranslations('SignUp');
     const tAuth = useTranslations('Auth');
     const locale = useLocale();
@@ -27,6 +28,8 @@ export default function SignUpPage() {
         const result = await signup(formData);
         if (result?.error) {
             setError(result.error);
+        } else if (result?.needsConfirmation) {
+            setShowConfirmation(true);
         }
     }
 
@@ -85,6 +88,16 @@ export default function SignUpPage() {
                             <p className="text-sm text-muted-foreground mt-1">{t('subtitle')}</p>
                         </div>
 
+                        {showConfirmation ? (
+                            <div className="text-center space-y-4 py-4">
+                                <div className="text-4xl">📧</div>
+                                <h2 className="text-lg font-semibold text-foreground">{t('checkEmail')}</h2>
+                                <p className="text-sm text-muted-foreground">{t('confirmationSent')}</p>
+                                <Link href={`/${locale}/login`} className="text-primary hover:underline text-sm font-medium">
+                                    {t('backToLogin')}
+                                </Link>
+                            </div>
+                        ) : (<>
                         <form action={handleSubmit} className="space-y-4">
                             <div className="space-y-3">
                                 <Input
@@ -154,6 +167,7 @@ export default function SignUpPage() {
                                 {t('signIn')}
                             </Link>
                         </p>
+                        </>)}
                     </div>
                 </motion.div>
             </div>
