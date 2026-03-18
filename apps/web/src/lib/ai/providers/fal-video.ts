@@ -1,5 +1,8 @@
 import type { MediaGenerationResult, MediaAssetResult } from '@/lib/riona/client';
 
+const FAL_API = 'https://queue.fal.run';
+const MODEL = 'fal-ai/wan-t2v';
+
 export async function generateVideoWithFal(
     prompt: string,
     aspectRatio: string = '9:16',
@@ -11,8 +14,8 @@ export async function generateVideoWithFal(
     }
 
     try {
-        // Use fal.ai REST API directly (no SDK import needed for server actions)
-        const response = await fetch('https://queue.fal.run/fal-ai/wan/v2.1/text-to-video', {
+        // Step 1: Submit to queue
+        const submitRes = await fetch(`${FAL_API}/${MODEL}`, {
             method: 'POST',
             headers: {
                 'Authorization': `Key ${apiKey}`,
@@ -20,50 +23,51 @@ export async function generateVideoWithFal(
             },
             body: JSON.stringify({
                 prompt: `Short vertical video for social media: ${prompt}`,
-                num_frames: duration <= 5 ? 81 : 129, // ~5s or ~8s at 16fps
-                resolution: aspectRatio === '9:16' ? '480p' : '720p',
+                num_frames: duration <= 5 ? 81 : 129,
+                resolution: '480p',
                 aspect_ratio: aspectRatio,
                 enable_safety_checker: true,
             }),
         });
 
-        if (!response.ok) {
-            const errorData = await response.json().catch(() => ({}));
-            throw new Error(errorData.detail || `fal.ai API error: ${response.status}`);
+        if (!submitRes.ok) {
+            const errText = await submitRes.text();
+            let errMsg = `fal.ai API error: ${submitRes.status}`;
+            try { errMsg = JSON.parse(errText).detail || errMsg; } catch {}
+            throw new Error(errMsg);
         }
 
-        const data = await response.json();
+        const submitData = await submitRes.json();
+        const requestId = submitData.request_id;
 
-        // fal.ai queue API returns a request_id for async processing
-        if (data.request_id) {
-            // Poll for result
-            const resultUrl = `https://queue.fal.run/fal-ai/wan/v2.1/text-to-video/requests/${data.request_id}`;
-            const maxRetries = 60;
-            for (let i = 0; i < maxRetries; i++) {
-                await new Promise(r => setTimeout(r, 5000));
+        if (!requestId) {
+            // Synchronous result returned directly
+            return processResult(submitData, prompt, aspectRatio, duration);
+        }
 
-                const statusRes = await fetch(`${resultUrl}/status`, {
-                    headers: { 'Authorization': `Key ${apiKey}` },
-                });
-                const statusData = await statusRes.json();
+        // Step 2: Poll for completion
+        const statusUrl = `${FAL_API}/${MODEL}/requests/${requestId}/status`;
+        const resultUrl = `${FAL_API}/${MODEL}/requests/${requestId}`;
+        const headers = { 'Authorization': `Key ${apiKey}` };
 
-                if (statusData.status === 'COMPLETED') {
-                    const resultRes = await fetch(resultUrl, {
-                        headers: { 'Authorization': `Key ${apiKey}` },
-                    });
-                    const resultData = await resultRes.json();
-                    return processResult(resultData, prompt, aspectRatio, duration);
-                }
+        for (let i = 0; i < 120; i++) { // Up to 10 minutes
+            await new Promise(r => setTimeout(r, 5000));
 
-                if (statusData.status === 'FAILED') {
-                    return { success: false, assets: [], error: 'Video generation failed. Try a different prompt.' };
-                }
+            const statusRes = await fetch(statusUrl, { headers });
+            const statusData = await statusRes.json();
+
+            if (statusData.status === 'COMPLETED') {
+                const resultRes = await fetch(resultUrl, { headers });
+                const resultData = await resultRes.json();
+                return processResult(resultData, prompt, aspectRatio, duration);
             }
-            return { success: false, assets: [], error: 'Video generation timed out.' };
+
+            if (statusData.status === 'FAILED') {
+                return { success: false, assets: [], error: statusData.error || 'Video generation failed. Try a different prompt.' };
+            }
         }
 
-        // Direct result (sync response)
-        return processResult(data, prompt, aspectRatio, duration);
+        return { success: false, assets: [], error: 'Video generation timed out after 10 minutes.' };
     } catch (error) {
         console.error('fal.ai video generation error:', error);
         const message = error instanceof Error ? error.message : 'Unknown fal.ai error';
@@ -79,17 +83,19 @@ function processResult(
 ): MediaGenerationResult {
     const assets: MediaAssetResult[] = [];
 
-    if (data.video?.url) {
+    // fal.ai returns video in data.video.url
+    const videoUrl = data.video?.url || data.output?.video?.url;
+    if (videoUrl) {
         assets.push({
             id: `fal-${Date.now()}-0`,
-            url: data.video.url,
+            url: videoUrl,
             type: 'video',
             provider: 'fal-ai',
             prompt,
             metadata: {
                 aspectRatio,
                 duration,
-                model: 'wan-2.1',
+                model: 'wan-t2v',
             },
         });
     }
