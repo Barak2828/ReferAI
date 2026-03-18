@@ -265,7 +265,9 @@
         "imageProvider": "Image Provider",
         "dalleProvider": "DALL-E 3 (OpenAI)",
         "geminiProvider": "Gemini Imagen (Google)",
-        "videoComingSoon": "Video (Coming Soon)"
+        "videoProvider": "Video Provider",
+        "veoProvider": "Google Veo",
+        "falProvider": "fal.ai (Wan 2.1)"
     },
     "SignUp": {
         "title": "Create Your Account",

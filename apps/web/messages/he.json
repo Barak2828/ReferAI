@@ -265,7 +265,9 @@
         "imageProvider": "ספק תמונות",
         "dalleProvider": "DALL-E 3 (OpenAI)",
         "geminiProvider": "Gemini Imagen (Google)",
-        "videoComingSoon": "וידאו (בקרוב)"
+        "videoProvider": "ספק וידאו",
+        "veoProvider": "Google Veo",
+        "falProvider": "fal.ai (Wan 2.1)"
     },
     "SignUp": {
         "title": "צור את החשבון שלך",

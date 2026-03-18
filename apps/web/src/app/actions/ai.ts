@@ -44,6 +44,8 @@ export async function analyzeCampaignLeads(
 
 import { generateImageWithDalle } from '@/lib/ai/providers/dalle';
 import { generateImageWithGemini } from '@/lib/ai/providers/gemini-imagen';
+import { generateVideoWithVeo } from '@/lib/ai/providers/veo';
+import { generateVideoWithFal } from '@/lib/ai/providers/fal-video';
 import {
     analyzeChannel,
     generateSmartPrompts,
@@ -52,6 +54,7 @@ import {
 } from '@/lib/riona/client';
 
 export type ImageProvider = 'dalle' | 'gemini';
+export type VideoProvider = 'veo' | 'fal';
 
 export async function generateCampaignImage(data: {
     prompt: string;
@@ -84,13 +87,25 @@ export async function generateCampaignVideo(data: {
     aspectRatio?: '16:9' | '9:16' | '1:1';
     duration?: 5 | 10;
     campaignId?: string;
+    provider?: VideoProvider;
 }): Promise<MediaGenerationResult> {
-    // Video generation is not yet available (Coming Soon)
-    return {
-        success: false,
-        assets: [],
-        error: 'Video generation is coming soon. Stay tuned!',
-    };
+    try {
+        const provider = data.provider || 'veo';
+        const duration = data.duration || 5;
+        const aspectRatio = data.aspectRatio || '9:16';
+
+        if (provider === 'fal') {
+            return await generateVideoWithFal(data.prompt, aspectRatio, duration);
+        }
+        return await generateVideoWithVeo(data.prompt, aspectRatio, duration);
+    } catch (error) {
+        console.error('Video generation error:', error);
+        return {
+            success: false,
+            assets: [],
+            error: error instanceof Error ? error.message : 'Unknown error',
+        };
+    }
 }
 
 export async function getAIMediaProviders() {
@@ -99,7 +114,10 @@ export async function getAIMediaProviders() {
             'dall-e-3': !!process.env.OPENAI_API_KEY,
             'gemini-imagen': !!process.env.GOOGLE_AI_API_KEY,
         },
-        video: {},
+        video: {
+            'google-veo': !!process.env.GOOGLE_AI_API_KEY,
+            'fal-ai': !!process.env.FAL_KEY,
+        },
     };
 }
 
