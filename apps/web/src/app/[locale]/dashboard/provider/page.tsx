@@ -8,6 +8,7 @@ import { useLocale, useTranslations } from "next-intl";
 import { motion } from "framer-motion";
 import { Plus, TrendingUp, Users, Wallet, ArrowRight, RefreshCw, Loader2, Sparkles, BarChart3, MousePointerClick, FileText } from "lucide-react";
 import { useState, useEffect } from "react";
+import { useSearchParams, useRouter, usePathname } from "next/navigation";
 import { syncAzugaCampaigns } from "@/app/actions/azuga";
 import { getProviderCampaigns, getProviderStats } from "@/app/actions/campaign";
 import { useToast } from "@/components/ui/toast";
@@ -36,6 +37,28 @@ export default function ProviderDashboard() {
     const locale = useLocale();
     const t = useTranslations('Dashboard');
     const { toast } = useToast();
+    const searchParams = useSearchParams();
+    const router = useRouter();
+    const pathname = usePathname();
+
+    // Handle OAuth callback feedback
+    useEffect(() => {
+        const oauthSuccess = searchParams.get('oauth_success');
+        const oauthError = searchParams.get('oauth_error');
+        const accountName = searchParams.get('account');
+
+        if (oauthSuccess) {
+            toast({
+                title: t('socialAccountLinked'),
+                description: `${oauthSuccess}${accountName ? ` (@${accountName})` : ''} connected successfully`,
+                variant: 'success',
+            });
+            router.replace(pathname);
+        } else if (oauthError) {
+            toast({ title: t('toastError'), description: decodeURIComponent(oauthError), variant: 'error' });
+            router.replace(pathname);
+        }
+    }, [searchParams]);
 
     useEffect(() => {
         async function loadData() {
