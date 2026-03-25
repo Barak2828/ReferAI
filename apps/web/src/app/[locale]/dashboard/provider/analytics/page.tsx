@@ -1,9 +1,10 @@
 "use client";
 
 import { StatsCard } from "@/components/ui/stats-card";
+import { Button } from "@/components/ui/button";
 import { useTranslations } from 'next-intl';
 import { motion } from "framer-motion";
-import { TrendingUp, MousePointerClick, Wallet, Target, Sparkles, Loader2, BarChart3 } from "lucide-react";
+import { TrendingUp, MousePointerClick, Wallet, Target, Loader2, BarChart3, Calendar, Download } from "lucide-react";
 import { useEffect, useState } from "react";
 import { getProviderAnalytics } from "@/app/actions/analytics";
 import { Badge } from "@/components/ui/badge";
@@ -18,10 +19,13 @@ interface Analytics {
     campaignBreakdown: { id: string; name: string; leads: number; clicks: number }[];
 }
 
+type DateRange = '7d' | '30d' | '90d' | 'all';
+
 export default function AnalyticsPage() {
     const t = useTranslations('Dashboard');
     const [loading, setLoading] = useState(true);
     const [data, setData] = useState<Analytics | null>(null);
+    const [dateRange, setDateRange] = useState<DateRange>('30d');
 
     useEffect(() => {
         async function load() {
@@ -36,13 +40,34 @@ export default function AnalyticsPage() {
             }
         }
         load();
-    }, []);
+    }, [dateRange]);
 
     const container = {
         hidden: { opacity: 0 },
         show: { opacity: 1, transition: { staggerChildren: 0.1 } }
     };
     const item = { hidden: { opacity: 0, y: 20 }, show: { opacity: 1, y: 0 } };
+
+    function exportCSV() {
+        if (!data) return;
+        const rows = [
+            ['Campaign', 'Leads', 'Clicks', 'Conversion Rate'],
+            ...data.campaignBreakdown.map(c => [
+                c.name,
+                String(c.leads),
+                String(c.clicks),
+                c.clicks > 0 ? `${Math.round((c.leads / c.clicks) * 100)}%` : '0%',
+            ]),
+        ];
+        const csv = rows.map(r => r.join(',')).join('\n');
+        const blob = new Blob([csv], { type: 'text/csv' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `referai-analytics-${new Date().toISOString().split('T')[0]}.csv`;
+        a.click();
+        URL.revokeObjectURL(url);
+    }
 
     if (loading) {
         return (
@@ -67,11 +92,38 @@ export default function AnalyticsPage() {
         );
     }
 
+    // Simple bar chart data for campaigns
+    const maxLeads = Math.max(...data.campaignBreakdown.map(c => c.leads), 1);
+
     return (
         <motion.div variants={container} initial="hidden" animate="show" className="space-y-8">
-            <div>
-                <h1 className="text-3xl font-bold text-foreground">{t('analyticsTitle')}</h1>
-                <p className="text-muted-foreground mt-1">{t('analyticsSubtitle')}</p>
+            <div className="flex items-center justify-between flex-wrap gap-4">
+                <div>
+                    <h1 className="text-3xl font-bold text-foreground">{t('analyticsTitle')}</h1>
+                    <p className="text-muted-foreground mt-1">{t('analyticsSubtitle')}</p>
+                </div>
+                <div className="flex items-center gap-2">
+                    {/* Date range filter */}
+                    <div className="flex gap-1 glass rounded-lg p-1">
+                        {(['7d', '30d', '90d', 'all'] as DateRange[]).map((range) => (
+                            <button
+                                key={range}
+                                onClick={() => setDateRange(range)}
+                                className={`px-3 py-1.5 rounded-md text-xs font-medium transition-all ${
+                                    dateRange === range
+                                        ? 'bg-primary text-white'
+                                        : 'text-muted-foreground hover:text-foreground hover:bg-white/5'
+                                }`}
+                            >
+                                {range === '7d' ? '7 Days' : range === '30d' ? '30 Days' : range === '90d' ? '90 Days' : 'All Time'}
+                            </button>
+                        ))}
+                    </div>
+                    <Button variant="outline" size="sm" onClick={exportCSV} className="border-white/10 gap-2">
+                        <Download className="h-3.5 w-3.5" />
+                        Export CSV
+                    </Button>
+                </div>
             </div>
 
             {/* Stats Cards */}
@@ -110,7 +162,40 @@ export default function AnalyticsPage() {
                 </motion.div>
             </div>
 
-            {/* Campaign Breakdown */}
+            {/* Visual Bar Chart - Campaign Performance */}
+            {data.campaignBreakdown.length > 0 && (
+                <motion.div variants={item}>
+                    <h2 className="text-xl font-semibold mb-4 text-foreground">{t('campaignPerformance') || 'Campaign Performance'}</h2>
+                    <div className="glass rounded-xl p-6 space-y-4">
+                        {data.campaignBreakdown.map((campaign) => {
+                            const rate = campaign.clicks > 0 ? Math.round((campaign.leads / campaign.clicks) * 100) : 0;
+                            const barWidth = Math.max((campaign.leads / maxLeads) * 100, 2);
+                            return (
+                                <div key={campaign.id} className="space-y-1.5">
+                                    <div className="flex items-center justify-between text-sm">
+                                        <span className="font-medium text-foreground truncate max-w-[200px]">{campaign.name}</span>
+                                        <div className="flex items-center gap-4 text-xs text-muted-foreground">
+                                            <span>{campaign.leads} leads</span>
+                                            <span>{campaign.clicks} clicks</span>
+                                            <Badge variant={rate > 5 ? "success" : "default"} className="text-[10px]">{rate}%</Badge>
+                                        </div>
+                                    </div>
+                                    <div className="h-3 bg-white/5 rounded-full overflow-hidden">
+                                        <motion.div
+                                            initial={{ width: 0 }}
+                                            animate={{ width: `${barWidth}%` }}
+                                            transition={{ duration: 0.8, ease: "easeOut" }}
+                                            className="h-full bg-gradient-to-r from-blue-500 to-indigo-500 rounded-full"
+                                        />
+                                    </div>
+                                </div>
+                            );
+                        })}
+                    </div>
+                </motion.div>
+            )}
+
+            {/* Campaign Breakdown Table */}
             {data.campaignBreakdown.length > 0 && (
                 <motion.div variants={item}>
                     <h2 className="text-xl font-semibold mb-4 text-foreground">{t('activeCampaigns')}</h2>

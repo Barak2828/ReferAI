@@ -13,11 +13,11 @@ import {
     ArrowRight, TrendingUp, Users, Link2, FileText, Loader2,
     Pause, Play, ExternalLink, Copy, Eye, MousePointerClick,
     BarChart3, Instagram, MessageSquare, Linkedin, Mail, Share2,
-    Pencil, Trash2, Save, X,
+    Pencil, Trash2, Save, X, Download, ChevronDown,
 } from "lucide-react";
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { getCampaignDetails, toggleCampaignActive, updateCampaign, deleteCampaign } from "@/app/actions/campaign";
+import { getCampaignDetails, toggleCampaignActive, updateCampaign, deleteCampaign, updateLeadStatus } from "@/app/actions/campaign";
 
 interface CampaignDetail {
     id: string;
@@ -493,28 +493,81 @@ export default function CampaignDetailPage() {
                             <p className="text-muted-foreground">{t("noLeadsYet")}</p>
                         </div>
                     ) : (
-                        <div className="glass rounded-xl overflow-hidden">
-                            <div className="border-b border-white/5 bg-white/[0.02] p-4 grid grid-cols-5 font-medium text-sm text-muted-foreground">
-                                <div>{t("campaignName")}</div>
-                                <div>{t("leadContact")}</div>
-                                <div>{t("status")}</div>
-                                <div>{t("leadValue")}</div>
-                                <div>{t("leadDate")}</div>
+                        <div className="space-y-3">
+                            <div className="flex justify-end">
+                                <Button
+                                    variant="outline"
+                                    size="sm"
+                                    className="border-white/10 gap-2"
+                                    onClick={() => {
+                                        const rows = [
+                                            ['Name', 'Contact', 'Status', 'Value', 'Commission', 'Date'],
+                                            ...campaign.leads.map(l => [
+                                                l.name || '', l.contact || '', l.status,
+                                                l.value != null ? String(l.value) : '',
+                                                l.commission != null ? String(l.commission) : '',
+                                                new Date(l.createdAt).toLocaleDateString(),
+                                            ]),
+                                        ];
+                                        const csv = rows.map(r => r.join(',')).join('\n');
+                                        const blob = new Blob([csv], { type: 'text/csv' });
+                                        const url = URL.createObjectURL(blob);
+                                        const a = document.createElement('a');
+                                        a.href = url;
+                                        a.download = `${campaign.name}-leads.csv`;
+                                        a.click();
+                                        URL.revokeObjectURL(url);
+                                    }}
+                                >
+                                    <Download className="h-3.5 w-3.5" />
+                                    {t('exportLeads') || 'Export CSV'}
+                                </Button>
                             </div>
-                            <div className="divide-y divide-white/5">
-                                {campaign.leads.map((lead) => (
-                                    <div key={lead.id} className="p-4 grid grid-cols-5 items-center text-sm hover:bg-white/[0.02] transition-colors">
-                                        <div className="font-medium text-foreground">{lead.name || "-"}</div>
-                                        <div className="text-muted-foreground">{lead.contact || "-"}</div>
-                                        <div>
-                                            <span className={`inline-flex px-2 py-0.5 rounded-full text-xs font-medium border ${statusColors[lead.status] || "text-muted-foreground"}`}>
-                                                {lead.status}
-                                            </span>
+                            <div className="glass rounded-xl overflow-hidden">
+                                <div className="border-b border-white/5 bg-white/[0.02] p-4 grid grid-cols-5 font-medium text-sm text-muted-foreground">
+                                    <div>{t("campaignName")}</div>
+                                    <div>{t("leadContact")}</div>
+                                    <div>{t("status")}</div>
+                                    <div>{t("leadValue")}</div>
+                                    <div>{t("leadDate")}</div>
+                                </div>
+                                <div className="divide-y divide-white/5">
+                                    {campaign.leads.map((lead) => (
+                                        <div key={lead.id} className="p-4 grid grid-cols-5 items-center text-sm hover:bg-white/[0.02] transition-colors">
+                                            <div className="font-medium text-foreground">{lead.name || "-"}</div>
+                                            <div className="text-muted-foreground">{lead.contact || "-"}</div>
+                                            <div>
+                                                <select
+                                                    value={lead.status}
+                                                    onChange={async (e) => {
+                                                        const newStatus = e.target.value as 'NEW' | 'CONTACTED' | 'CLOSED' | 'LOST';
+                                                        const result = await updateLeadStatus(lead.id, newStatus);
+                                                        if (result.success) {
+                                                            // Update local state
+                                                            setCampaign(prev => prev ? {
+                                                                ...prev,
+                                                                leads: prev.leads.map(l =>
+                                                                    l.id === lead.id ? { ...l, status: newStatus } : l
+                                                                ),
+                                                            } : prev);
+                                                            toast({ title: 'Lead status updated', variant: 'success' });
+                                                        } else {
+                                                            toast({ title: t('toastError'), description: result.error, variant: 'error' });
+                                                        }
+                                                    }}
+                                                    className={`px-2 py-1 rounded-lg text-xs font-medium border bg-transparent cursor-pointer ${statusColors[lead.status] || "text-muted-foreground"}`}
+                                                >
+                                                    <option value="NEW">NEW</option>
+                                                    <option value="CONTACTED">CONTACTED</option>
+                                                    <option value="CLOSED">CLOSED</option>
+                                                    <option value="LOST">LOST</option>
+                                                </select>
+                                            </div>
+                                            <div className="text-muted-foreground">{lead.value != null ? `${lead.value.toLocaleString()} ₪` : "-"}</div>
+                                            <div className="text-muted-foreground">{new Date(lead.createdAt).toLocaleDateString(locale === "he" ? "he-IL" : "en-US")}</div>
                                         </div>
-                                        <div className="text-muted-foreground">{lead.value != null ? `${lead.value.toLocaleString()} ₪` : "-"}</div>
-                                        <div className="text-muted-foreground">{new Date(lead.createdAt).toLocaleDateString(locale === "he" ? "he-IL" : "en-US")}</div>
-                                    </div>
-                                ))}
+                                    ))}
+                                </div>
                             </div>
                         </div>
                     )}

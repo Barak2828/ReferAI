@@ -402,3 +402,26 @@ export async function toggleCampaignActive(campaignId: string) {
     revalidatePath('/dashboard/provider')
     return { success: true, isActive: !campaign.isActive }
 }
+
+// ─── Lead Management ────────────────────────────────────────
+
+export async function updateLeadStatus(
+    leadId: string,
+    status: 'NEW' | 'CONTACTED' | 'CLOSED' | 'LOST',
+    notes?: string,
+) {
+    const supabase = createClient()
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return { error: 'Not authenticated' }
+
+    const updateData: Record<string, any> = { status }
+    if (notes !== undefined) updateData.notes = notes
+
+    const { error } = await supabase
+        .from('Lead')
+        .update(updateData)
+        .eq('id', leadId)
+
+    if (error) return { error: error.message }
+    return { success: true }
+}
