@@ -633,11 +633,23 @@ export default function NewCampaignPage() {
                                         <div key={platform} className="glass rounded-lg p-4 relative group">
                                             <div className="flex justify-between items-center mb-2">
                                                 <span className="text-xs font-bold uppercase text-muted-foreground tracking-wider">{platform}</span>
-                                                <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-primary" onClick={() => handleCopy(text, platform)}>
-                                                    <Copy className="h-4 w-4" />
-                                                </Button>
+                                                <div className="flex gap-1">
+                                                    <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-primary" onClick={() => handleCopy(text, platform)}>
+                                                        <Copy className="h-4 w-4" />
+                                                    </Button>
+                                                </div>
                                             </div>
-                                            <p className="text-sm whitespace-pre-wrap leading-relaxed text-foreground/80">{getContentText(text)}</p>
+                                            <textarea
+                                                className="w-full text-sm whitespace-pre-wrap leading-relaxed text-foreground/80 bg-transparent border border-white/5 rounded-lg p-2 resize-y min-h-[60px] focus:border-primary/30 focus:outline-none"
+                                                value={getContentText(text)}
+                                                onChange={(e) => {
+                                                    setGeneratedContent((prev: any) => ({
+                                                        ...prev,
+                                                        [platform]: e.target.value,
+                                                    }));
+                                                }}
+                                                rows={3}
+                                            />
                                         </div>
                                     ))}
                                 </div>
