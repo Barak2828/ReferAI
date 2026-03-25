@@ -8,13 +8,16 @@ import Link from "next/link";
 import { useLocale, useTranslations } from "next-intl";
 import { useParams } from "next/navigation";
 import { motion } from "framer-motion";
+import { Input } from "@/components/ui/input";
 import {
     ArrowRight, TrendingUp, Users, Link2, FileText, Loader2,
     Pause, Play, ExternalLink, Copy, Eye, MousePointerClick,
     BarChart3, Instagram, MessageSquare, Linkedin, Mail, Share2,
+    Pencil, Trash2, Save, X,
 } from "lucide-react";
 import { useState, useEffect } from "react";
-import { getCampaignDetails, toggleCampaignActive } from "@/app/actions/campaign";
+import { useRouter } from "next/navigation";
+import { getCampaignDetails, toggleCampaignActive, updateCampaign, deleteCampaign } from "@/app/actions/campaign";
 
 interface CampaignDetail {
     id: string;
@@ -80,10 +83,18 @@ export default function CampaignDetailPage() {
     const { toast } = useToast();
     const campaignId = params.id as string;
 
+    const router = useRouter();
     const [campaign, setCampaign] = useState<CampaignDetail | null>(null);
     const [loading, setLoading] = useState(true);
     const [toggling, setToggling] = useState(false);
     const [activeTab, setActiveTab] = useState<'overview' | 'content' | 'leads' | 'links'>('overview');
+
+    // Edit mode state
+    const [isEditing, setIsEditing] = useState(false);
+    const [isSaving, setIsSaving] = useState(false);
+    const [isDeleting, setIsDeleting] = useState(false);
+    const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+    const [editForm, setEditForm] = useState({ name: '', description: '', commission: 0, cta: '' });
 
     useEffect(() => {
         async function load() {
@@ -111,6 +122,38 @@ export default function CampaignDetailPage() {
     const handleCopyContent = async (text: string, platform: string) => {
         await navigator.clipboard.writeText(text);
         toast({ title: t("toastCopied"), description: `${platform}`, variant: "success" });
+    };
+
+    const handleStartEdit = () => {
+        if (!campaign) return;
+        setEditForm({ name: campaign.name, description: campaign.description, commission: campaign.commission, cta: campaign.cta });
+        setIsEditing(true);
+    };
+
+    const handleSaveEdit = async () => {
+        setIsSaving(true);
+        const result = await updateCampaign(campaignId, editForm);
+        if (result.success) {
+            setCampaign(prev => prev ? { ...prev, ...editForm } : prev);
+            setIsEditing(false);
+            toast({ title: t("toastProfileUpdated"), variant: "success" });
+        } else {
+            toast({ title: t("toastError"), description: result.error, variant: "error" });
+        }
+        setIsSaving(false);
+    };
+
+    const handleDelete = async () => {
+        setIsDeleting(true);
+        const result = await deleteCampaign(campaignId);
+        if (result.success) {
+            toast({ title: t("campaignDeleted") || "Campaign deleted", variant: "success" });
+            router.push(`/${locale}/dashboard/provider`);
+        } else {
+            toast({ title: t("toastError"), description: result.error, variant: "error" });
+            setIsDeleting(false);
+            setShowDeleteConfirm(false);
+        }
     };
 
     if (loading) {
@@ -152,23 +195,71 @@ export default function CampaignDetailPage() {
         <motion.div variants={container} initial="hidden" animate="show" className="space-y-6">
             {/* Header */}
             <div className="flex items-start justify-between flex-wrap gap-4">
-                <div>
+                <div className="flex-1 min-w-0">
                     <Link href={`/${locale}/dashboard/provider`} className="text-sm text-muted-foreground hover:text-primary mb-2 inline-flex items-center gap-1">
                         <ArrowRight className="h-3 w-3 rotate-180" /> {t("backToDashboard")}
                     </Link>
-                    <h1 className="text-3xl font-bold text-foreground">{campaign.name}</h1>
-                    <p className="text-muted-foreground mt-1">{campaign.description}</p>
+                    {isEditing ? (
+                        <div className="space-y-3 mt-2">
+                            <Input value={editForm.name} onChange={(e) => setEditForm(prev => ({ ...prev, name: e.target.value }))} className="text-2xl font-bold bg-navy-800/50 border-white/10" placeholder={t("campaignNameLabel")} />
+                            <Input value={editForm.description} onChange={(e) => setEditForm(prev => ({ ...prev, description: e.target.value }))} className="bg-navy-800/50 border-white/10" placeholder={t("descriptionLabel")} />
+                            <div className="flex gap-3">
+                                <Input value={editForm.cta} onChange={(e) => setEditForm(prev => ({ ...prev, cta: e.target.value }))} className="bg-navy-800/50 border-white/10" placeholder={t("callToActionLabel")} />
+                                <Input type="number" value={editForm.commission} onChange={(e) => setEditForm(prev => ({ ...prev, commission: parseFloat(e.target.value) || 0 }))} className="bg-navy-800/50 border-white/10 w-32" placeholder="%" />
+                            </div>
+                        </div>
+                    ) : (
+                        <>
+                            <h1 className="text-3xl font-bold text-foreground">{campaign.name}</h1>
+                            <p className="text-muted-foreground mt-1">{campaign.description}</p>
+                        </>
+                    )}
                 </div>
-                <div className="flex items-center gap-3">
-                    <Badge variant={campaign.isActive ? "success" : "default"}>
-                        {campaign.isActive ? t("active") : t("paused")}
-                    </Badge>
-                    <Button variant="outline" size="sm" className="border-white/10" onClick={handleToggle} disabled={toggling}>
-                        {toggling ? <Loader2 className="me-2 h-3 w-3 animate-spin" /> : campaign.isActive ? <Pause className="me-2 h-3 w-3" /> : <Play className="me-2 h-3 w-3" />}
-                        {campaign.isActive ? t("pauseCampaign") : t("activateCampaign")}
-                    </Button>
+                <div className="flex items-center gap-2">
+                    {isEditing ? (
+                        <>
+                            <Button size="sm" className="bg-emerald-600 hover:bg-emerald-500 text-white" onClick={handleSaveEdit} disabled={isSaving}>
+                                {isSaving ? <Loader2 className="me-2 h-3 w-3 animate-spin" /> : <Save className="me-2 h-3 w-3" />}
+                                {t("saveChanges")}
+                            </Button>
+                            <Button variant="ghost" size="sm" onClick={() => setIsEditing(false)}>
+                                <X className="me-1 h-3 w-3" /> {t("cancelButton") || "Cancel"}
+                            </Button>
+                        </>
+                    ) : (
+                        <>
+                            <Badge variant={campaign.isActive ? "success" : "default"}>
+                                {campaign.isActive ? t("active") : t("paused")}
+                            </Badge>
+                            <Button variant="outline" size="sm" className="border-white/10" onClick={handleStartEdit}>
+                                <Pencil className="me-2 h-3 w-3" />
+                                {t("editCampaign") || "Edit"}
+                            </Button>
+                            <Button variant="outline" size="sm" className="border-white/10" onClick={handleToggle} disabled={toggling}>
+                                {toggling ? <Loader2 className="me-2 h-3 w-3 animate-spin" /> : campaign.isActive ? <Pause className="me-2 h-3 w-3" /> : <Play className="me-2 h-3 w-3" />}
+                                {campaign.isActive ? t("pauseCampaign") : t("activateCampaign")}
+                            </Button>
+                            <Button variant="outline" size="sm" className="border-red-500/20 text-red-400 hover:bg-red-500/10" onClick={() => setShowDeleteConfirm(true)}>
+                                <Trash2 className="h-3 w-3" />
+                            </Button>
+                        </>
+                    )}
                 </div>
             </div>
+
+            {/* Delete Confirmation */}
+            {showDeleteConfirm && (
+                <div className="glass rounded-xl p-4 border border-red-500/20 flex items-center justify-between">
+                    <p className="text-sm text-red-300">{t("deleteCampaignConfirm") || "Are you sure you want to delete this campaign? This action cannot be undone."}</p>
+                    <div className="flex gap-2">
+                        <Button size="sm" variant="ghost" onClick={() => setShowDeleteConfirm(false)}>{t("cancelButton") || "Cancel"}</Button>
+                        <Button size="sm" className="bg-red-600 hover:bg-red-500 text-white" onClick={handleDelete} disabled={isDeleting}>
+                            {isDeleting ? <Loader2 className="me-2 h-3 w-3 animate-spin" /> : <Trash2 className="me-2 h-3 w-3" />}
+                            {t("deleteCampaign") || "Delete"}
+                        </Button>
+                    </div>
+                </div>
+            )}
 
             {/* Stats Row */}
             <div className="grid gap-4 md:grid-cols-4">

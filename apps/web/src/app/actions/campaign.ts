@@ -329,6 +329,53 @@ export async function getCampaignDetails(campaignId: string) {
     }
 }
 
+export async function updateCampaign(campaignId: string, data: Partial<CampaignData>) {
+    const supabase = createClient()
+
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return { error: 'Not authenticated' }
+
+    const updateFields: Record<string, any> = { updatedAt: new Date().toISOString() }
+    if (data.name !== undefined) updateFields.name = data.name
+    if (data.description !== undefined) updateFields.description = data.description
+    if (data.commission !== undefined) updateFields.commission = data.commission
+    if (data.cta !== undefined) updateFields.cta = data.cta
+
+    const { error } = await supabase
+        .from('Campaign')
+        .update(updateFields)
+        .eq('id', campaignId)
+        .eq('providerId', user.id)
+
+    if (error) return { error: error.message }
+
+    revalidatePath('/dashboard/provider')
+    return { success: true }
+}
+
+export async function deleteCampaign(campaignId: string) {
+    const supabase = createClient()
+
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return { error: 'Not authenticated' }
+
+    // Delete related data first (content, leads, share links)
+    await supabase.from('Content').delete().eq('campaignId', campaignId)
+    await supabase.from('Lead').delete().eq('campaignId', campaignId)
+    await supabase.from('ShareLink').delete().eq('campaignId', campaignId)
+
+    const { error } = await supabase
+        .from('Campaign')
+        .delete()
+        .eq('id', campaignId)
+        .eq('providerId', user.id)
+
+    if (error) return { error: error.message }
+
+    revalidatePath('/dashboard/provider')
+    return { success: true }
+}
+
 export async function toggleCampaignActive(campaignId: string) {
     const supabase = createClient()
 
