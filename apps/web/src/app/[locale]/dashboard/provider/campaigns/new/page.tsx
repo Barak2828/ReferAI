@@ -24,7 +24,7 @@ import {
     connectWhatsApp as connectWhatsAppAction,
 } from "@/app/actions/social";
 import {
-    Loader2, Check, Copy, Sparkles, Instagram,
+    Loader2, Check, Copy, Sparkles, Instagram, Clock,
     Send, Zap, Globe, MessageSquare, ImageIcon, Video, Wand2, Brain,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
@@ -137,6 +137,11 @@ export default function NewCampaignPage() {
 
     // Instagram DM target / WhatsApp recipient
     const [dmTarget, setDmTarget] = useState("");
+
+    // Publish scheduling
+    const [publishMode, setPublishMode] = useState<'now' | 'scheduled'>('now');
+    const [scheduledDate, setScheduledDate] = useState("");
+    const [scheduledTime, setScheduledTime] = useState("");
 
     // AI Image/Video generation state
     const [imageProvider, setImageProvider] = useState<ImageProvider>('dalle');
@@ -391,6 +396,11 @@ export default function NewCampaignPage() {
         try {
             const contentText = getContentText(generatedContent[platformKey]);
             const contentMeta: Record<string, any> = {};
+
+            // Attach scheduled time if scheduling is set
+            if (publishMode === 'scheduled' && scheduledDate && scheduledTime) {
+                contentMeta.scheduledAt = new Date(`${scheduledDate}T${scheduledTime}`).toISOString();
+            }
 
             // Attach generated image/video to publish request
             if (generatedImages.length > 0 && selectedImageVariant < generatedImages.length) {
@@ -991,6 +1001,61 @@ export default function NewCampaignPage() {
                                             )}
                                             {t('publishToAll')}
                                         </Button>
+                                    )}
+                                </div>
+
+                                {/* Publish Scheduling */}
+                                <div className="glass rounded-xl p-4 border border-white/5 space-y-3">
+                                    <label className="text-sm font-medium text-muted-foreground flex items-center gap-2">
+                                        <Clock className="h-3.5 w-3.5" />
+                                        {t('publishScheduleLabel') || 'Publishing Schedule'}
+                                    </label>
+                                    <div className="flex gap-2">
+                                        <button
+                                            onClick={() => setPublishMode('now')}
+                                            className={cn(
+                                                "flex-1 py-2 px-3 rounded-lg text-sm font-medium border transition-all",
+                                                publishMode === 'now'
+                                                    ? "border-blue-500 bg-blue-500/10 text-blue-300"
+                                                    : "border-white/10 text-muted-foreground hover:bg-white/5"
+                                            )}
+                                        >
+                                            {t('publishNow') || 'Publish Now'}
+                                        </button>
+                                        <button
+                                            onClick={() => setPublishMode('scheduled')}
+                                            className={cn(
+                                                "flex-1 py-2 px-3 rounded-lg text-sm font-medium border transition-all",
+                                                publishMode === 'scheduled'
+                                                    ? "border-violet-500 bg-violet-500/10 text-violet-300"
+                                                    : "border-white/10 text-muted-foreground hover:bg-white/5"
+                                            )}
+                                        >
+                                            {t('publishScheduled') || 'Schedule for Later'}
+                                        </button>
+                                    </div>
+                                    {publishMode === 'scheduled' && (
+                                        <div className="grid grid-cols-2 gap-3 pt-1">
+                                            <div className="space-y-1">
+                                                <label className="text-xs text-muted-foreground">{t('publishDate') || 'Date'}</label>
+                                                <Input
+                                                    type="date"
+                                                    value={scheduledDate}
+                                                    onChange={(e) => setScheduledDate(e.target.value)}
+                                                    min={new Date().toISOString().split('T')[0]}
+                                                    className="bg-navy-800/50 border-white/10"
+                                                />
+                                            </div>
+                                            <div className="space-y-1">
+                                                <label className="text-xs text-muted-foreground">{t('publishTime') || 'Time'}</label>
+                                                <Input
+                                                    type="time"
+                                                    value={scheduledTime}
+                                                    onChange={(e) => setScheduledTime(e.target.value)}
+                                                    className="bg-navy-800/50 border-white/10"
+                                                />
+                                            </div>
+                                        </div>
                                     )}
                                 </div>
 
