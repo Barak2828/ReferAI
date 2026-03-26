@@ -1,10 +1,12 @@
 import { Controller, Post, Get, Body, HttpCode, HttpStatus } from '@nestjs/common';
 import { RionaService } from './riona.service';
+import { Public } from '../auth/supabase-auth.guard';
 
 @Controller('riona')
 export class RionaController {
     constructor(private readonly rionaService: RionaService) {}
 
+    @Public()
     @Get('status')
     async getStatus() {
         return this.rionaService.getStatus();

@@ -1,4 +1,5 @@
 import { Module } from '@nestjs/common';
+import { APP_GUARD } from '@nestjs/core';
 import { PrismaModule } from './prisma/prisma.module';
 import { RionaModule } from './riona/riona.module';
 import { SocialCredentialsModule } from './social-credentials/social-credentials.module';
@@ -6,6 +7,7 @@ import { OAuthModule } from './oauth/oauth.module';
 import { PublishingModule } from './publishing/publishing.module';
 import { AiMediaModule } from './ai-media/ai-media.module';
 import { ContentIntelligenceModule } from './content-intelligence/content-intelligence.module';
+import { SupabaseAuthGuard } from './auth/supabase-auth.guard';
 
 @Module({
     imports: [
@@ -18,6 +20,11 @@ import { ContentIntelligenceModule } from './content-intelligence/content-intell
         ContentIntelligenceModule,
     ],
     controllers: [],
-    providers: [],
+    providers: [
+        {
+            provide: APP_GUARD,
+            useClass: SupabaseAuthGuard,
+        },
+    ],
 })
 export class AppModule {}
