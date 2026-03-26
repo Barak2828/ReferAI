@@ -386,6 +386,92 @@ export default function CampaignDetailPage() {
                         )}
                     </div>
 
+                    {/* Channel Distribution + Top Collaborators (Stitch design) */}
+                    <div className="grid gap-6 lg:grid-cols-2">
+                        {/* Channel Distribution Donut */}
+                        <div className="glass rounded-xl p-6">
+                            <h2 className="text-lg font-semibold text-foreground mb-4">Channel Distribution</h2>
+                            <div className="flex justify-center py-4">
+                                <div className="relative w-32 h-32">
+                                    <svg viewBox="0 0 36 36" className="w-full h-full -rotate-90">
+                                        {(() => {
+                                            const types = campaign.contents.map(c => c.type);
+                                            const unique = Array.from(new Set(types));
+                                            const colors: Record<string, string> = {
+                                                WHATSAPP_TEXT: '#25D366', INSTAGRAM_CAPTION: '#E1306C',
+                                                FACEBOOK_POST: '#1877F2', LINKEDIN_POST: '#0A66C2',
+                                                TWITTER_POST: '#1DA1F2', EMAIL_BODY: '#6366F1',
+                                            };
+                                            let offset = 0;
+                                            return unique.map((type) => {
+                                                const count = types.filter(t => t === type).length;
+                                                const pct = (count / types.length) * 88;
+                                                const el = (
+                                                    <circle key={type} cx="18" cy="18" r="14" fill="none"
+                                                        stroke={colors[type] || '#666'} strokeWidth="4"
+                                                        strokeDasharray={`${pct} ${88 - pct}`}
+                                                        strokeDashoffset={`-${offset}`} />
+                                                );
+                                                offset += pct;
+                                                return el;
+                                            });
+                                        })()}
+                                    </svg>
+                                    <div className="absolute inset-0 flex items-center justify-center">
+                                        <div className="text-center">
+                                            <div className="text-lg font-bold text-foreground">{campaign.contents.length}</div>
+                                            <div className="text-[10px] text-muted-foreground">Posts</div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div className="space-y-2 mt-2">
+                                {Array.from(new Set(campaign.contents.map(c => c.type))).map(type => {
+                                    const label = contentTypeLabels[type] || type;
+                                    const textColor = channelTextColors[type] || 'text-gray-400';
+                                    const count = campaign.contents.filter(c => c.type === type).length;
+                                    return (
+                                        <div key={type} className="flex items-center justify-between text-sm">
+                                            <span className={`${textColor}`}>{label}</span>
+                                            <span className="font-medium text-foreground">{count}</span>
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                        </div>
+
+                        {/* AI-Generated Insights */}
+                        <div className="glass rounded-xl p-6">
+                            <h2 className="text-lg font-semibold text-foreground mb-4">AI Insights</h2>
+                            <div className="space-y-3">
+                                <div className="flex items-start gap-3 p-3 rounded-lg bg-emerald-500/5 border border-emerald-500/10">
+                                    <TrendingUp className="h-4 w-4 text-emerald-400 mt-0.5 shrink-0" />
+                                    <p className="text-sm text-muted-foreground">
+                                        {closedLeads > 0
+                                            ? `${closedLeads} leads converted with a ${conversionRate}% conversion rate. Revenue: ₪${totalRevenue.toLocaleString()}`
+                                            : 'No conversions yet. Share your campaign link to start generating leads.'}
+                                    </p>
+                                </div>
+                                <div className="flex items-start gap-3 p-3 rounded-lg bg-blue-500/5 border border-blue-500/10">
+                                    <BarChart3 className="h-4 w-4 text-blue-400 mt-0.5 shrink-0" />
+                                    <p className="text-sm text-muted-foreground">
+                                        {campaign.contents.length > 0
+                                            ? `Content published on ${campaign.contents.length} channels. ${totalClicks} total link clicks recorded.`
+                                            : 'Generate AI content in the campaign wizard to start publishing.'}
+                                    </p>
+                                </div>
+                                <div className="flex items-start gap-3 p-3 rounded-lg bg-violet-500/5 border border-violet-500/10">
+                                    <Users className="h-4 w-4 text-violet-400 mt-0.5 shrink-0" />
+                                    <p className="text-sm text-muted-foreground">
+                                        {campaign.shareLinks.length > 0
+                                            ? `${campaign.shareLinks.length} share links active. Top link: ${campaign.shareLinks.reduce((max, l) => l.clicks > max.clicks ? l : max, campaign.shareLinks[0]).clicks} clicks.`
+                                            : 'Create share links to track promoter performance.'}
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
                     {/* Conversion Funnel */}
                     <div className="glass rounded-xl p-6">
                         <h2 className="text-lg font-semibold text-foreground mb-4">{t("conversionFunnel")}</h2>
