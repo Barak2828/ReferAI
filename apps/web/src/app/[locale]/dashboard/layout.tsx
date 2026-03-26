@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useLocale, useTranslations } from "next-intl";
-import { LayoutDashboard, Users, Settings, LogOut, Menu, X, Megaphone, BarChart3 } from "lucide-react";
+import { LayoutDashboard, Users, Settings, LogOut, Menu, X, Megaphone, BarChart3, Mail } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useState } from "react";
 import { cn } from "@/lib/utils";
@@ -25,6 +25,7 @@ export default function DashboardLayout({
         { name: t('navPromoter'), href: `/${locale}/dashboard/promoter`, icon: Users },
         { name: t('navNewCampaign'), href: `/${locale}/dashboard/provider/campaigns/new`, icon: Megaphone },
         { name: t('navAnalytics'), href: `/${locale}/dashboard/provider/analytics`, icon: BarChart3 },
+        { name: t('navInvites') || 'Invites', href: `/${locale}/dashboard/invites`, icon: Mail },
         { name: t('navProfile'), href: `/${locale}/dashboard/profile`, icon: Settings },
     ];
 
